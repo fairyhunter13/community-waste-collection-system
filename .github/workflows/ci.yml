@@ -65,6 +65,12 @@ jobs:
             -coverpkg=./internal/... \
             ./internal/... -v
 
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit
+          path: coverage.out
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -97,6 +103,12 @@ jobs:
             ./internal/repository/... ./internal/service/... \
             -timeout 120s -v
 
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration
+          path: coverage-integration.out
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -104,3 +116,90 @@ jobs:
           flags: integration
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+  coverage-gate:
+    name: Coverage Gate (≥80%)
+    runs-on: ubuntu-24.04
+    needs: [test-unit, test-integration]
+    env:
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+      DOCKER_HOST: "unix:///var/run/docker.sock"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Run combined tests (unit + integration)
+        run: |
+          go test -race -count=1 -tags=integration \
+            -coverprofile=coverage-combined.out \
+            -coverpkg=./internal/... \
+            ./internal/... -timeout 120s
+
+      - name: Enforce 80% coverage gate
+        run: |
+          TOTAL=$(go tool cover -func=coverage-combined.out \
+            | grep "^total:" | awk '{print $3}' | tr -d '%')
+          echo "Combined coverage: ${TOTAL}%"
+          if awk "BEGIN {exit ($TOTAL+0 >= 80)}"; then
+            echo "::error::Coverage ${TOTAL}% is below the 80% minimum threshold"
+            exit 1
+          fi
+          echo "::notice::Coverage ${TOTAL}% passes the 80% gate"
+
+  bench:
+    name: Benchmarks
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: waste_bench
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Install migrate CLI
+        run: |
+          go install -tags 'postgres' \
+            github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+      - name: Run migrations
+        run: |
+          migrate -path ./migrations \
+            -database "postgres://postgres:postgres@localhost:5432/waste_bench?sslmode=disable" \
+            up
+
+      - name: Run benchmarks
+        run: |
+          go test -bench=. -benchmem -run='^$' -tags=integration \
+            ./internal/... -timeout 120s 2>&1 | tee benchmark-results.txt
+        env:
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/waste_bench?sslmode=disable"
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmark-results.txt
