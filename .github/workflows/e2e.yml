@@ -1,0 +1,109 @@
+name: E2E Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: End-to-End Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DOCKER_HOST: "unix:///var/run/docker.sock"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Create .env for docker-compose
+        run: |
+          cp .env.example .env
+          # Override with docker-internal service hostnames
+          sed -i 's|DATABASE_URL=.*|DATABASE_URL=postgres://postgres:postgres@postgres:5432/waste_collection?sslmode=disable|' .env
+          sed -i 's|S3_ENDPOINT=.*|S3_ENDPOINT=http://minio:9000|' .env
+          sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318|' .env
+          echo "APP_ENV=ci" >> .env
+
+      - name: Start infrastructure services
+        run: |
+          docker compose -f deployments/docker-compose.yml up --build -d \
+            postgres minio otel-collector
+
+      - name: Wait for postgres
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose -f deployments/docker-compose.yml exec -T postgres \
+               pg_isready -U postgres -d waste_collection 2>/dev/null; then
+              echo "Postgres ready"
+              break
+            fi
+            echo "Waiting for postgres ($i/30)..."
+            sleep 3
+          done
+
+      - name: Wait for minio
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(docker compose -f deployments/docker-compose.yml ps minio --format json 2>/dev/null | grep -o '"Health":"[^"]*"' | head -1)
+            if echo "$STATUS" | grep -q "healthy"; then
+              echo "MinIO ready"
+              break
+            fi
+            echo "Waiting for MinIO ($i/30)..."
+            sleep 3
+          done
+
+      - name: Run database migrations
+        run: |
+          NETWORK=$(docker inspect \
+            "$(docker compose -f deployments/docker-compose.yml ps -q postgres)" \
+            --format='{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' | head -1)
+          docker run --rm \
+            --network "$NETWORK" \
+            -v "$(pwd)/migrations:/migrations" \
+            migrate/migrate:v4.18.1 \
+            -path=/migrations \
+            -database "postgres://postgres:postgres@postgres:5432/waste_collection?sslmode=disable" \
+            up
+
+      - name: Start application
+        run: |
+          docker compose -f deployments/docker-compose.yml up --build -d app
+
+      - name: Wait for application
+        run: |
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:8080/api/households > /dev/null 2>&1; then
+              echo "Application ready"
+              break
+            fi
+            echo "Waiting for application ($i/40)..."
+            sleep 3
+          done
+
+      - name: Run E2E tests
+        run: |
+          go test -race -count=1 -tags=e2e \
+            ./test/e2e/... \
+            -timeout 180s -v
+        env:
+          BASE_URL: "http://localhost:8080"
+
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose -f deployments/docker-compose.yml logs --no-color
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f deployments/docker-compose.yml down -v --remove-orphans
