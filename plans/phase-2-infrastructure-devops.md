@@ -262,10 +262,17 @@ DROP TYPE IF EXISTS payment_status;
 
 ## 4. golangci-lint Configuration (`.golangci.yml`)
 
+golangci-lint v2 is used. The `version: "2"` header is required; formatters (like
+`goimports`) live in a separate `formatters:` top-level key rather than under `linters:`;
+and linter settings are nested under `linters.settings:` (not the v1 `linters-settings:`
+key). `wrapcheck` is excluded — its v2 config API is incompatible with Echo's idiomatic
+`return c.JSON(...)` handler pattern.
+
 ```yaml
+version: "2"
+
 run:
   timeout: 5m
-  go: "1.26"
   modules-download-mode: readonly
 
 linters:
@@ -290,58 +297,56 @@ linters:
     - godot            # exported comments must end with a period
     - misspell         # common English spelling mistakes in code and comments
     - cyclop           # cyclomatic complexity (max 15 per function)
-    - wrapcheck        # errors returned from external packages must be wrapped
     - prealloc         # slice append loops where pre-allocation is possible
 
     # ── Style and clarity ───────────────────────────────────────────────────
-    - goimports        # gofmt + correct import grouping (stdlib / external / internal)
     - whitespace       # unnecessary blank lines at start/end of blocks
     - godox            # flag TODO/FIXME/HACK/BUG comments (warn, not fail)
 
-linters-settings:
-  cyclop:
-    max-complexity: 15
-    skip-tests: true
+  settings:
+    cyclop:
+      max-complexity: 15
+      skip-tests: true
 
-  gosec:
-    excludes:
-      - G115  # integer conversion overflow — too noisy for general use
+    exhaustive:
+      default-signifies-exhaustive: true
 
-  revive:
-    rules:
-      - name: exported
-        arguments: ["checkPrivateReceivers"]
-      - name: var-naming
-      - name: package-comments
-      - name: unexported-return
+    gosec:
+      excludes:
+        - G115  # integer conversion overflow — too noisy for general use
+        - G108  # pprof endpoint — intentional debug-only feature
 
-  wrapcheck:
-    ignorePackageGlobs:
-      # Domain errors are the canonical errors; no wrapping needed when returning them
-      - "github.com/fairyhunter13/community-waste-collection-system/internal/domain"
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+        - name: package-comments
+        - name: unexported-return
 
-  goimports:
-    # Treat internal packages as a separate group from external dependencies
-    local-prefixes: "github.com/fairyhunter13/community-waste-collection-system"
+    goconst:
+      min-len: 3
+      min-occurrences: 3
 
-  goconst:
-    min-len: 3
-    min-occurrences: 3
+    godox:
+      keywords:
+        - TODO
+        - FIXME
+        - HACK
+        - BUG
 
-  godox:
-    keywords:
-      - TODO
-      - FIXME
-      - HACK
-      - BUG
+formatters:
+  enable:
+    - goimports        # gofmt + correct import grouping (stdlib / external / internal)
+  settings:
+    goimports:
+      local-prefixes:
+        - "github.com/fairyhunter13/community-waste-collection-system"
 
 issues:
   max-same-issues: 0
   exclude-rules:
-    # Relax security and wrapping checks in test files
     - path: "_test\\.go"
-      linters: [gosec, wrapcheck, cyclop]
-    # Allow init functions in main package
+      linters: [gosec, cyclop]
     - path: "cmd/"
       linters: [gochecknoinits]
 ```
