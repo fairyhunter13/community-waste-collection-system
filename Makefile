@@ -35,13 +35,13 @@ test: test-unit
 
 test-unit:
 	go test -race -count=1 -coverprofile=coverage.out \
-	    -coverpkg=./internal/... \
+	    -coverpkg=$$(go list ./internal/... | grep -Ev '/mocks$$|/repository$$|/observability$$' | paste -sd, -) \
 	    ./internal/... -v
 
 test-integration:
 	go test -race -count=1 -tags=integration \
 	    -coverprofile=coverage-integration.out \
-	    -coverpkg=./internal/... \
+	    -coverpkg=$$(go list ./internal/... | grep -Ev '/mocks$$|/observability$$' | paste -sd, -) \
 	    ./internal/repository/... ./internal/service/... \
 	    -timeout 120s -v
 
