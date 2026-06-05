@@ -33,6 +33,10 @@ package repository_test
 // E2E tests: require full docker-compose stack
 //go:build e2e
 package e2e_test
+
+// Performance tests: require full docker-compose stack + running app
+//go:build perf
+package perf_test
 ```
 
 **Running:**
@@ -41,6 +45,7 @@ go test ./...                             # unit tests only (no tags)
 go test -tags=integration ./...           # unit + integration
 go test -tags=e2e ./test/e2e/...          # E2E only
 go test -tags=integration,e2e ./...       # all tests
+go test -bench=. -benchmem -run='^$' -tags=perf ./test/perf/...  # performance tests (needs BASE_URL)
 ```
 
 ---
@@ -63,12 +68,14 @@ internal/
     ├── pickup_repository.go
     └── payment_repository.go
 test/
-└── e2e/
-    ├── suite_test.go            # E2E suite setup and teardown
-    ├── household_test.go
-    ├── pickup_test.go
-    ├── payment_test.go
-    └── report_test.go
+├── e2e/
+│   ├── suite_test.go            # E2E suite setup and teardown
+│   ├── household_test.go
+│   ├── pickup_test.go
+│   ├── payment_test.go
+│   └── report_test.go
+└── perf/
+    └── perf_test.go             # HTTP performance benchmarks (//go:build perf)
 ```
 
 ---
@@ -417,55 +424,65 @@ GET /api/households?page=2&per_page=20 → 5 results
 
 ---
 
-## 7. Integration Benchmarks
+## 7. Performance Tests
 
-**Scope:** Repository and service hot paths with real PostgreSQL.
-**Tool:** `B.Loop()` (Go 1.24) — accurate, avoids manual `b.ResetTimer()` pitfalls.
-**Build tag:** `//go:build integration` (use real DB via testcontainers).
+### 7a. Full-Stack HTTP Performance Tests (`test/perf/`)
+
+**Scope:** End-to-end HTTP latency against the full running stack (app + postgres + minio + otel-collector).
+**Build tag:** `//go:build perf`
+**Requires:** `BASE_URL` env var pointing at the running app (e.g. `http://localhost:8080`).
+**Run in CI:** `perf` job in `ci.yml` — spins up the full docker-compose stack identically to the `e2e` job.
+
+```go
+//go:build perf
+
+package perf_test
+
+import (
+    "fmt"
+    "net/http"
+    "os"
+    "strings"
+    "testing"
+)
+
+func benchBaseURL(b *testing.B) string {
+    url := os.Getenv("BASE_URL")
+    if url == "" {
+        b.Skip("BASE_URL not set — skipping performance tests")
+    }
+    return url
+}
+
+func BenchmarkListHouseholds(b *testing.B) { ... }   // GET /api/households
+func BenchmarkCreateHousehold(b *testing.B) { ... }  // POST /api/households
+func BenchmarkListPickups(b *testing.B) { ... }       // GET /api/pickups
+func BenchmarkWasteSummary(b *testing.B) { ... }      // GET /api/reports/waste-summary
+func BenchmarkPaymentSummary(b *testing.B) { ... }    // GET /api/reports/payment-summary
+```
+
+**Why HTTP-level instead of DB-level in CI:**
+- Measures realistic user-facing latency (full round-trip: routing, middleware, DB, serialization)
+- Catches regressions from any layer — a slow SQL query or expensive middleware both surface
+- Results are actionable SLA numbers ("GET /api/reports/waste-summary: 3.2ms/op")
+
+**Run locally:**
+```bash
+make perf   # requires full docker-compose stack running
+```
+
+### 7b. DB-Layer Benchmarks (`internal/repository/`, `internal/service/`)
+
+**Scope:** Repository and service hot paths with real PostgreSQL — for local profiling only.
+**Build tag:** `//go:build integration`
+**Not run in CI** — only via `make bench` during local development.
 
 ```go
 //go:build integration
 
-func BenchmarkPickupRepository_List(b *testing.B) {
-    // Setup: testcontainers PostgreSQL + seed 1000 pickups
-    ctx := b.Context()
-    for b.Loop() {
-        _, _, err := repo.List(ctx, domain.PickupFilter{Page: 1, PerPage: 20})
-        if err != nil {
-            b.Fatal(err)
-        }
-    }
-}
-
-func BenchmarkPickupService_Create(b *testing.B) {
-    // Setup: testcontainers + real repos + real service
-    ctx := b.Context()
-    for b.Loop() {
-        _, _ = svc.Create(ctx, domain.CreatePickupRequest{
-            HouseholdID: testHouseholdID,
-            Type:        domain.WasteTypePlastic,
-        })
-    }
-}
-
-func BenchmarkPaymentRepository_WasteSummary(b *testing.B) {
-    // Measures report query performance with 10,000 pickup rows
-    ctx := b.Context()
-    for b.Loop() {
-        _, err := repo.WasteSummary(ctx)
-        if err != nil {
-            b.Fatal(err)
-        }
-    }
-}
-```
-
-**Artifact output:**
-```go
-// Use testing.ArtifactDir() (Go 1.26) to save benchmark output
-artifactDir := testing.ArtifactDir()
-f, _ := os.Create(filepath.Join(artifactDir, "bench-results.txt"))
-// Write benchmark output
+func BenchmarkPickupRepository_List(b *testing.B) { ... }
+func BenchmarkPickupService_Create(b *testing.B) { ... }
+func BenchmarkPaymentRepository_WasteSummary(b *testing.B) { ... }
 ```
 
 **Run:** `make bench` → outputs `ns/op`, `allocs/op`, `B/op`
