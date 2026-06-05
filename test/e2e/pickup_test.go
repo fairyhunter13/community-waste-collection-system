@@ -5,6 +5,7 @@ package e2e_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -322,6 +323,170 @@ func (s *E2ESuite) TestPickup_CreateNonExistentHousehold() {
 	})
 	s.Equal(http.StatusBadRequest, resp.StatusCode)
 	resp.Body.Close()
+}
+
+// TestPickup_BR01_MixedPayments_OnlyPendingBlocks confirms that BR-01 blocks
+// new pickups as long as any pending payment exists and unblocks only when all
+// pending payments for the household are confirmed.
+func (s *E2ESuite) TestPickup_BR01_MixedPayments_OnlyPendingBlocks() {
+	var hResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "BR01 Mixed Owner",
+		"address":    "Jl. BR01 Mixed No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	// Create two pickups.
+	var p1Resp, p2Resp map[string]any
+	r1 := s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "plastic"})
+	s.Require().Equal(http.StatusCreated, r1.StatusCode)
+	s.decode(r1, &p1Resp)
+	p1ID := p1Resp["data"].(map[string]any)["id"].(string)
+
+	r2 := s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "paper"})
+	s.Require().Equal(http.StatusCreated, r2.StatusCode)
+	s.decode(r2, &p2Resp)
+	p2ID := p2Resp["data"].(map[string]any)["id"].(string)
+
+	// Create a pending payment for each pickup directly.
+	var pay1Resp, pay2Resp map[string]any
+	r3 := s.do(http.MethodPost, "/api/payments", map[string]any{
+		"household_id": householdID, "waste_id": p1ID, "amount": "50000.00",
+	})
+	s.Require().Equal(http.StatusCreated, r3.StatusCode)
+	s.decode(r3, &pay1Resp)
+	pay1ID := pay1Resp["data"].(map[string]any)["id"].(string)
+
+	r4 := s.do(http.MethodPost, "/api/payments", map[string]any{
+		"household_id": householdID, "waste_id": p2ID, "amount": "50000.00",
+	})
+	s.Require().Equal(http.StatusCreated, r4.StatusCode)
+	s.decode(r4, &pay2Resp)
+	pay2ID := pay2Resp["data"].(map[string]any)["id"].(string)
+
+	// New pickup blocked — two pending payments.
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
+	s.Equal(http.StatusConflict, resp.StatusCode)
+	resp.Body.Close()
+
+	// Confirm first payment — one pending payment remains, still blocked.
+	s.confirmPayment(pay1ID)
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
+	s.Equal(http.StatusConflict, resp.StatusCode)
+	resp.Body.Close()
+
+	// Confirm second payment — zero pending, new pickup must succeed.
+	s.confirmPayment(pay2ID)
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
+	s.Equal(http.StatusCreated, resp.StatusCode)
+	resp.Body.Close()
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+// TestPickup_BR02_ScheduleCompleted_Fails checks that scheduling an already
+// completed pickup returns 409 (BR-02 requires pending status).
+func (s *E2ESuite) TestPickup_BR02_ScheduleCompleted_Fails() {
+	var hResp, pResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "BR02 Completed Owner",
+		"address":    "Jl. BR02 Completed No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "plastic"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	// Attempt to reschedule a completed pickup — must fail.
+	resp = s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(72 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.Equal(http.StatusConflict, resp.StatusCode)
+	resp.Body.Close()
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+// TestPickup_BR02_ScheduleCanceled_Fails checks that scheduling a canceled
+// pickup returns 409 (BR-02 requires pending status).
+func (s *E2ESuite) TestPickup_BR02_ScheduleCanceled_Fails() {
+	var hResp, pResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "BR02 Canceled Owner",
+		"address":    "Jl. BR02 Canceled No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/cancel", pickupID), nil)
+
+	// Attempt to schedule a canceled pickup — must fail.
+	resp = s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.Equal(http.StatusConflict, resp.StatusCode)
+	resp.Body.Close()
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+func (s *E2ESuite) TestPickup_ScheduleNonExistent_404() {
+	resp := s.do(http.MethodPut, "/api/pickups/00000000-0000-0000-0000-000000000001/schedule", map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.Equal(http.StatusNotFound, resp.StatusCode)
+	resp.Body.Close()
+}
+
+func (s *E2ESuite) TestPickup_CompleteNonExistent_404() {
+	resp := s.do(http.MethodPut, "/api/pickups/00000000-0000-0000-0000-000000000002/complete", nil)
+	s.Equal(http.StatusNotFound, resp.StatusCode)
+	resp.Body.Close()
+}
+
+func (s *E2ESuite) TestPickup_CancelNonExistent_404() {
+	resp := s.do(http.MethodPut, "/api/pickups/00000000-0000-0000-0000-000000000003/cancel", nil)
+	s.Equal(http.StatusNotFound, resp.StatusCode)
+	resp.Body.Close()
+}
+
+// TestPickup_ListEmpty_Returns200EmptyData verifies that listing pickups for a
+// household with no pickups returns 200 with an empty data array, not an error.
+func (s *E2ESuite) TestPickup_ListEmpty_Returns200EmptyData() {
+	var hResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "Empty Pickup Owner",
+		"address":    "Jl. Empty No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodGet, fmt.Sprintf("/api/pickups?household_id=%s", householdID), nil)
+	s.Equal(http.StatusOK, resp.StatusCode)
+	var listResp map[string]any
+	s.decode(resp, &listResp)
+	data := listResp["data"].([]any)
+	s.Empty(data, "expected empty data array for household with no pickups")
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
 }
 
 func (s *E2ESuite) TestPickup_RateLimit() {

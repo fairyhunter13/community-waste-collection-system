@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"testing"
@@ -79,4 +80,21 @@ func (s *E2ESuite) decode(resp *http.Response, dst any) {
 
 func pathf(format string, args ...any) string {
 	return fmt.Sprintf(format, args...)
+}
+
+// confirmPayment confirms a payment by uploading a fake proof file.
+func (s *E2ESuite) confirmPayment(paymentID string) {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	part, err := mw.CreateFormFile("proof", "receipt.jpg")
+	s.Require().NoError(err)
+	_, _ = part.Write([]byte("fake-jpeg-data"))
+	mw.Close()
+	req, err := http.NewRequest(http.MethodPut, s.baseURL+pathf("/api/payments/%s/confirm", paymentID), &buf)
+	s.Require().NoError(err)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := s.client.Do(req)
+	s.Require().NoError(err)
+	resp.Body.Close()
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
 }
