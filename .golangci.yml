@@ -40,6 +40,7 @@ linters-settings:
   gosec:
     excludes:
       - G115
+      - G108 # pprof intentionally served on a separate debug-only port
 
   revive:
     rules:
