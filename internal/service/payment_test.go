@@ -2,10 +2,12 @@ package service_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -37,12 +39,12 @@ func (s *PaymentServiceSuite) TestCreate_Success() {
 	req := domain.CreatePaymentRequest{
 		HouseholdID: uuid.New(),
 		WasteID:     uuid.New(),
-		Amount:      "50000.00",
+		Amount:      decimal.RequireFromString("50000.00"),
 	}
 	got, err := s.svc.Create(s.T().Context(), req)
 	s.Require().NoError(err)
 	s.Equal(domain.PaymentStatusPending, got.Status)
-	s.Equal("50000.00", got.Amount)
+	s.Equal(decimal.RequireFromString("50000.00"), got.Amount)
 }
 
 func (s *PaymentServiceSuite) TestConfirm_BR06_NilFileReturnsValidationError() {
@@ -96,6 +98,30 @@ func (s *PaymentServiceSuite) TestConfirm_StorageError_Propagates() {
 	s.Require().ErrorIs(err, domain.ErrInternalFailure)
 }
 
+func (s *PaymentServiceSuite) TestCreate_RepoReturnsNotFound_Propagates() {
+	s.repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Payment")).
+		Return(fmt.Errorf("household not found: %w", domain.ErrNotFound))
+
+	_, err := s.svc.Create(s.T().Context(), domain.CreatePaymentRequest{
+		HouseholdID: uuid.New(),
+		WasteID:     uuid.New(),
+		Amount:      decimal.RequireFromString("50000.00"),
+	})
+	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
+
+func (s *PaymentServiceSuite) TestCreate_RepoReturnsConflict_Propagates() {
+	s.repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Payment")).
+		Return(fmt.Errorf("payment for this pickup already exists: %w", domain.ErrConflict))
+
+	_, err := s.svc.Create(s.T().Context(), domain.CreatePaymentRequest{
+		HouseholdID: uuid.New(),
+		WasteID:     uuid.New(),
+		Amount:      decimal.RequireFromString("50000.00"),
+	})
+	s.Require().ErrorIs(err, domain.ErrConflict)
+}
+
 func (s *PaymentServiceSuite) TestList_DelegatesToRepo() {
 	payments := []*domain.Payment{{ID: uuid.New()}}
 	filter := domain.PaymentFilter{Page: 1, PerPage: 20}
@@ -132,7 +158,7 @@ func (s *ReportServiceSuite) TestWasteSummary_DelegatesToRepo() {
 }
 
 func (s *ReportServiceSuite) TestPaymentSummary_DelegatesToRepo() {
-	expected := &domain.PaymentSummaryResult{TotalRevenue: "100000"}
+	expected := &domain.PaymentSummaryResult{TotalRevenue: decimal.RequireFromString("100000")}
 	s.repo.On("PaymentSummary", mock.Anything).Return(expected, nil)
 
 	got, err := s.svc.PaymentSummary(s.T().Context())

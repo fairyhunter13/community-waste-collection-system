@@ -15,9 +15,14 @@ import (
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
 )
 
+// s3API is the subset of aws-sdk-go-v2 s3.Client used by S3Client, enabling test injection.
+type s3API interface {
+	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+}
+
 // S3Client is an S3-compatible storage client backed by aws-sdk-go-v2.
 type S3Client struct {
-	client   *s3.Client
+	client   s3API
 	bucket   string
 	endpoint string
 }

@@ -36,7 +36,14 @@ func (h *Handler) ListPickups(c echo.Context) error {
 	}
 	if s := c.QueryParam("status"); s != "" {
 		status := domain.PickupStatus(s)
-		filter.Status = &status
+		switch status {
+		case domain.PickupStatusPending, domain.PickupStatusScheduled,
+			domain.PickupStatusCompleted, domain.PickupStatusCanceled:
+			filter.Status = &status
+		default:
+			return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR",
+				"invalid status: must be pending, scheduled, completed, or canceled")
+		}
 	}
 
 	pickups, total, err := h.pickupSvc.List(c.Request().Context(), filter)

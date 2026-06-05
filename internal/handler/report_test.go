@@ -1,12 +1,14 @@
 package handler_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -32,7 +34,7 @@ func (s *ReportHandlerSuite) SetupTest() {
 	s.pSvc = mocks.NewPickupService(s.T())
 	s.paySvc = mocks.NewPaymentService(s.T())
 	s.rptSvc = mocks.NewReportService(s.T())
-	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load())
+	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load(), nil)
 	s.h.RegisterRoutes(s.echo)
 }
 
@@ -44,17 +46,17 @@ func (s *ReportHandlerSuite) TestWasteSummary_200() {
 	summaries := []domain.WasteTypeSummary{{Type: domain.WasteTypeOrganic, Total: 3}}
 	s.rptSvc.On("WasteSummary", mock.Anything).Return(summaries, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/reports/waste-summary", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/reports/waste-summary", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusOK, rec.Code)
 }
 
 func (s *ReportHandlerSuite) TestPaymentSummary_200() {
-	result := &domain.PaymentSummaryResult{TotalRevenue: "150000"}
+	result := &domain.PaymentSummaryResult{TotalRevenue: decimal.RequireFromString("150000")}
 	s.rptSvc.On("PaymentSummary", mock.Anything).Return(result, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/reports/payment-summary", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/reports/payment-summary", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusOK, rec.Code)
@@ -65,7 +67,7 @@ func (s *ReportHandlerSuite) TestHouseholdHistory_200() {
 	history := &domain.HouseholdHistoryResult{Household: &domain.Household{ID: id}}
 	s.rptSvc.On("HouseholdHistory", mock.Anything, id).Return(history, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/reports/households/"+id.String()+"/history", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/reports/households/"+id.String()+"/history", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusOK, rec.Code)
@@ -75,7 +77,7 @@ func (s *ReportHandlerSuite) TestHouseholdHistory_404() {
 	id := uuid.New()
 	s.rptSvc.On("HouseholdHistory", mock.Anything, id).Return(nil, domain.ErrNotFound)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/reports/households/"+id.String()+"/history", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/reports/households/"+id.String()+"/history", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusNotFound, rec.Code)

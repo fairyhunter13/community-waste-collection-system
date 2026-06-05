@@ -57,7 +57,7 @@ A phase is DONE only when all its gate criteria pass. Do not move to the next ph
 - [ ] All repository interfaces defined with every method signature
 - [ ] All service interfaces defined with every method signature
 - [ ] Domain error taxonomy complete with HTTP status mapping
-- [ ] All 9 ADRs written with context, decision, and consequences
+- [ ] All 11 ADRs written with context, decision, and consequences
 - [ ] Go 1.26.4 features identified with specific application in code
 - [ ] Concurrency pattern selected for each use case (worker, fan-out, rate limit, shutdown)
 - [ ] Observability architecture documented (OTel spans per layer, Prometheus metrics list)
@@ -132,7 +132,7 @@ A phase is DONE only when all its gate criteria pass. Do not move to the next ph
 | testcontainers-go slow startup in CI/local | Medium | Low | Cache Docker images; run integration tests in parallel suites; use `start_period` healthcheck |
 | MinIO configuration issues in E2E | Low | Medium | Verify MinIO in sub-phase 3.3 before writing E2E tests; unit tests mock storage |
 | golangci-lint too strict blocking progress | Low | Low | Start with essential linters; incrementally add strict ones after core features work |
-| Go 1.26 feature unavailable in a dependency | Low | Low | Pin dependency versions; check release notes; fall back to Go 1.24 equivalent if needed |
+| Go 1.26 feature unavailable in a dependency | Low | Low | Pin dependency versions; check release notes; fall back to Go 1.25 equivalent if needed |
 | E2E test flakiness (timing, port conflicts) | Medium | Low | Use testcontainers for E2E DB; fixed ports; `TearDownTest` truncation between tests |
 | Graceful shutdown leaves goroutine leak | Low | High | Test SIGINT explicitly; use Go 1.26's goroutine leak detection (GOEXPERIMENT=goroutineleakprofile) |
 

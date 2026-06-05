@@ -34,6 +34,7 @@ jobs:
           sed -i 's|S3_ENDPOINT=.*|S3_ENDPOINT=http://minio:9000|' .env
           sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318|' .env
           echo "APP_ENV=ci" >> .env
+          echo "WORKER_CANCEL_INTERVAL=5s" >> .env
 
       - name: Start infrastructure services
         run: |
@@ -99,6 +100,7 @@ jobs:
             -timeout 180s -v
         env:
           BASE_URL: "http://localhost:8080"
+          E2E_DB_URL: "postgres://postgres:postgres@localhost:5432/waste_collection?sslmode=disable"
 
       - name: Collect logs on failure
         if: failure()

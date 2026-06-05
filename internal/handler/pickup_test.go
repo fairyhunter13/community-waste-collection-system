@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -36,7 +37,7 @@ func (s *PickupHandlerSuite) SetupTest() {
 	s.pSvc = mocks.NewPickupService(s.T())
 	s.paySvc = mocks.NewPaymentService(s.T())
 	s.rptSvc = mocks.NewReportService(s.T())
-	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load())
+	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load(), nil)
 	s.h.RegisterRoutes(s.echo)
 }
 
@@ -50,7 +51,7 @@ func (s *PickupHandlerSuite) TestCreatePickup_201() {
 	s.pSvc.On("Create", mock.Anything, mock.AnythingOfType("domain.CreatePickupRequest")).Return(pickup, nil)
 
 	body := fmt.Sprintf(`{"household_id":"%s","type":"organic"}`, householdID)
-	req := httptest.NewRequest(http.MethodPost, "/api/pickups", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/pickups", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
@@ -62,7 +63,7 @@ func (s *PickupHandlerSuite) TestCreatePickup_409_PendingPayment() {
 
 	householdID := uuid.New()
 	body := fmt.Sprintf(`{"household_id":"%s","type":"organic"}`, householdID)
-	req := httptest.NewRequest(http.MethodPost, "/api/pickups", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/pickups", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
@@ -73,7 +74,7 @@ func (s *PickupHandlerSuite) TestListPickups_200() {
 	pickups := []*domain.WastePickup{{ID: uuid.New()}}
 	s.pSvc.On("List", mock.Anything, mock.AnythingOfType("domain.PickupFilter")).Return(pickups, 1, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/pickups", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/pickups", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusOK, rec.Code)
@@ -85,7 +86,7 @@ func (s *PickupHandlerSuite) TestSchedulePickup_200() {
 	s.pSvc.On("Schedule", mock.Anything, id, mock.AnythingOfType("domain.SchedulePickupRequest")).Return(pickup, nil)
 
 	body := `{"pickup_date":"2026-12-01T10:00:00Z"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/pickups/"+id.String()+"/schedule", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/schedule", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
@@ -97,7 +98,7 @@ func (s *PickupHandlerSuite) TestSchedulePickup_422_ElectronicNoSafetyCheck() {
 	s.pSvc.On("Schedule", mock.Anything, id, mock.Anything).Return(nil, domain.ErrBusinessRule)
 
 	body := fmt.Sprintf(`{"pickup_date":"%s"}`, time.Now().Add(24*time.Hour).Format(time.RFC3339))
-	req := httptest.NewRequest(http.MethodPut, "/api/pickups/"+id.String()+"/schedule", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/schedule", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
@@ -109,7 +110,7 @@ func (s *PickupHandlerSuite) TestCompletePickup_200() {
 	pickup := &domain.WastePickup{ID: id, Status: domain.PickupStatusCompleted}
 	s.pSvc.On("Complete", mock.Anything, id).Return(pickup, nil)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/pickups/"+id.String()+"/complete", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/complete", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusOK, rec.Code)
@@ -120,7 +121,7 @@ func (s *PickupHandlerSuite) TestCancelPickup_200() {
 	pickup := &domain.WastePickup{ID: id, Status: domain.PickupStatusCanceled}
 	s.pSvc.On("Cancel", mock.Anything, id).Return(pickup, nil)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/pickups/"+id.String()+"/cancel", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/cancel", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusOK, rec.Code)
@@ -134,8 +135,42 @@ func (s *PickupHandlerSuite) TestCancelPickup_409_Completed() {
 	id := uuid.New()
 	s.pSvc.On("Cancel", mock.Anything, id).Return(nil, domain.ErrConflict)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/pickups/"+id.String()+"/cancel", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/cancel", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusConflict, rec.Code)
+}
+
+func (s *PickupHandlerSuite) TestCreatePickup_400_InvalidJSON() {
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/pickups", strings.NewReader(`not json`))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusBadRequest, rec.Code)
+}
+
+func (s *PickupHandlerSuite) TestSchedulePickup_400_InvalidJSON() {
+	id := uuid.New()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/schedule", strings.NewReader(`not json`))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusBadRequest, rec.Code)
+}
+
+func (s *PickupHandlerSuite) TestCompletePickup_409_AlreadyCompleted() {
+	id := uuid.New()
+	s.pSvc.On("Complete", mock.Anything, id).Return(nil, domain.ErrConflict)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/complete", nil)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusConflict, rec.Code)
+}
+
+func (s *PickupHandlerSuite) TestListPickups_400_InvalidStatus() {
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/pickups?status=garbage", nil)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusBadRequest, rec.Code)
 }

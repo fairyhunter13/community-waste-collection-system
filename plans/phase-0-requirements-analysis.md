@@ -317,7 +317,7 @@ Request body:
 - `safety_check`: optional boolean, defaults to false
 
 Response `201 Created`: pickup object with status `pending`.
-Errors: `400` (validation), `404` (household not found), `409` (BR-01), `429` (rate limited)
+Errors: `400` (validation or non-existent household_id), `409` (BR-01), `429` (rate limited)
 
 ---
 
@@ -382,7 +382,7 @@ Request body:
 ```
 
 Response `201 Created`: payment object.
-Errors: `400`, `404` (household or pickup not found), `409` (payment already exists for this pickup)
+Errors: `400` (validation or non-existent household_id/waste_id), `409` (payment already exists for this pickup)
 
 ---
 

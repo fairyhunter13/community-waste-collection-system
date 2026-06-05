@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   modules-download-mode: readonly
@@ -24,56 +26,55 @@ linters:
     - godot
     - misspell
     - cyclop
-    - wrapcheck
     - prealloc
 
     # Style and clarity
-    - goimports
     - whitespace
     - godox
 
-linters-settings:
-  cyclop:
-    max-complexity: 15
-    skip-tests: true
+  settings:
+    cyclop:
+      max-complexity: 15
+      skip-tests: true
 
-  gosec:
-    excludes:
-      - G115
-      - G108 # pprof intentionally served on a separate debug-only port
+    exhaustive:
+      default-signifies-exhaustive: true
 
-  revive:
-    rules:
-      - name: exported
-        arguments: ["checkPrivateReceivers"]
-      - name: var-naming
-      - name: package-comments
-      - name: unexported-return
+    gosec:
+      excludes:
+        - G115
+        - G108
 
-  wrapcheck:
-    ignorePackageGlobs:
-      - "github.com/fairyhunter13/community-waste-collection-system/internal/domain"
-      - "github.com/labstack/echo/v4"
-      - "github.com/go-playground/validator/v10"
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+        - name: package-comments
+        - name: unexported-return
 
-  goimports:
-    local-prefixes: "github.com/fairyhunter13/community-waste-collection-system"
+    goconst:
+      min-len: 3
+      min-occurrences: 3
 
-  goconst:
-    min-len: 3
-    min-occurrences: 3
+    godox:
+      keywords:
+        - TODO
+        - FIXME
+        - HACK
+        - BUG
 
-  godox:
-    keywords:
-      - TODO
-      - FIXME
-      - HACK
-      - BUG
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - "github.com/fairyhunter13/community-waste-collection-system"
 
 issues:
   max-same-issues: 0
   exclude-rules:
     - path: "_test\\.go"
-      linters: [gosec, wrapcheck, cyclop]
+      linters: [gosec, cyclop]
     - path: "cmd/"
       linters: [gochecknoinits]

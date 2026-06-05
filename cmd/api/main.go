@@ -43,7 +43,7 @@ func main() {
 		logger.Error("connect to database", "error", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Storage
 	s3, err := storage.NewS3Client(cfg)
@@ -71,7 +71,7 @@ func main() {
 	e.Use(middleware.RequestLogger(logger))
 	e.Use(middleware.OtelTrace(cfg.OTELServiceName))
 
-	h := handler.New(householdSvc, pickupSvc, paymentSvc, reportSvc, cfg)
+	h := handler.New(householdSvc, pickupSvc, paymentSvc, reportSvc, cfg, db)
 	h.RegisterRoutes(e)
 
 	// Background worker
