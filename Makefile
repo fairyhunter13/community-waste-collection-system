@@ -6,7 +6,7 @@ DB_URL     ?= $(DATABASE_URL)
 
 .PHONY: all run build clean \
         lint fmt vet \
-        test test-unit test-integration test-e2e bench coverage \
+        test test-unit test-integration test-e2e bench perf coverage \
         migrate-up migrate-down migrate-force migrate-version migrate-create \
         docker-up docker-down docker-logs docker-clean \
         seed
@@ -54,6 +54,11 @@ bench:
 	go test -bench=. -benchmem -run='^$$' -tags=integration \
 	    ./internal/... \
 	    -timeout 120s
+
+perf:
+	go test -bench=. -benchmem -run='^$$' -tags=perf \
+	    ./test/perf/... \
+	    -timeout 300s
 
 coverage:
 	go tool cover -html=coverage.out -o coverage.html

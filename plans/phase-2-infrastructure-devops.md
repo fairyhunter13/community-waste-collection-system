@@ -360,7 +360,7 @@ DB_URL     ?= $(DATABASE_URL)
 
 .PHONY: all run build clean \
         lint fmt vet \
-        test test-unit test-integration test-e2e bench \
+        test test-unit test-integration test-e2e bench perf \
         migrate-up migrate-down migrate-force migrate-version migrate-create \
         docker-up docker-down docker-logs docker-clean \
         seed
@@ -411,6 +411,11 @@ bench:
 	    ./internal/... \
 	    -timeout 120s
 
+perf:
+	go test -bench=. -benchmem -run='^$$' -tags=perf \
+	    ./test/perf/... \
+	    -timeout 300s
+
 coverage:
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
@@ -457,7 +462,8 @@ make run                # start app outside Docker
 make test               # unit tests
 make test-integration   # integration tests (requires DB)
 make test-e2e           # E2E tests (requires full docker-compose stack)
-make bench              # run integration benchmarks
+make bench              # run DB-layer benchmarks (requires DATABASE_URL)
+make perf               # run HTTP performance tests (requires BASE_URL + full stack)
 make lint               # full golangci-lint
 make migrate-create NAME=add_index_foo  # create new migration pair
 ```
