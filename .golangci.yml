@@ -52,6 +52,8 @@ linters-settings:
   wrapcheck:
     ignorePackageGlobs:
       - "github.com/fairyhunter13/community-waste-collection-system/internal/domain"
+      - "github.com/labstack/echo/v4"
+      - "github.com/go-playground/validator/v10"
 
   goimports:
     local-prefixes: "github.com/fairyhunter13/community-waste-collection-system"
