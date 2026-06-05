@@ -1,0 +1,332 @@
+{
+  "info": {
+    "name": "Community Waste Collection API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "All endpoints for the Community Waste Collection API."
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080", "type": "string" },
+    { "key": "household_id", "value": "", "type": "string" },
+    { "key": "pickup_id", "value": "", "type": "string" },
+    { "key": "payment_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Households",
+      "item": [
+        {
+          "name": "Create Household",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('household_id', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/households",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"owner_name\": \"Budi Santoso\", \"address\": \"Jl. Merdeka No. 1\"}"
+            }
+          }
+        },
+        {
+          "name": "Create Household — 400 Missing Fields",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/households",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "List Households",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/households?page=1&per_page=10",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Household",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/households/{{household_id}}"
+          }
+        },
+        {
+          "name": "Get Household — 404",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/households/00000000-0000-0000-0000-000000000000"
+          }
+        },
+        {
+          "name": "Delete Household",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/households/{{household_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Waste Pickups",
+      "item": [
+        {
+          "name": "Create Pickup (organic)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('pickup_id', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/pickups",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"household_id\": \"{{household_id}}\", \"type\": \"organic\"}"
+            }
+          }
+        },
+        {
+          "name": "Create Pickup (electronic with safety_check)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/pickups",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"household_id\": \"{{household_id}}\", \"type\": \"electronic\", \"safety_check\": true}"
+            }
+          }
+        },
+        {
+          "name": "Create Pickup — 409 Pending Payment",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/pickups",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"household_id\": \"{{household_id}}\", \"type\": \"plastic\"}"
+            }
+          }
+        },
+        {
+          "name": "List Pickups",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/pickups?page=1&per_page=20",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Pickups — filter by status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/pickups?status=pending",
+              "query": [{ "key": "status", "value": "pending" }]
+            }
+          }
+        },
+        {
+          "name": "Schedule Pickup",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/pickups/{{pickup_id}}/schedule",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"pickup_date\": \"2026-12-01T10:00:00Z\"}"
+            }
+          }
+        },
+        {
+          "name": "Schedule Pickup — 422 Electronic No Safety Check",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/pickups/{{pickup_id}}/schedule",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"pickup_date\": \"2026-12-01T10:00:00Z\"}"
+            }
+          }
+        },
+        {
+          "name": "Complete Pickup",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/pickups/{{pickup_id}}/complete"
+          }
+        },
+        {
+          "name": "Cancel Pickup",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/pickups/{{pickup_id}}/cancel"
+          }
+        },
+        {
+          "name": "Cancel Pickup — 409 Already Completed",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/pickups/{{pickup_id}}/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('payment_id', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/payments",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"household_id\": \"{{household_id}}\", \"waste_id\": \"{{pickup_id}}\", \"amount\": \"50000.00\"}"
+            }
+          }
+        },
+        {
+          "name": "List Payments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/payments?page=1&per_page=20",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Payments — filter by status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/payments?status=pending",
+              "query": [{ "key": "status", "value": "pending" }]
+            }
+          }
+        },
+        {
+          "name": "Confirm Payment (multipart proof upload)",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/payments/{{payment_id}}/confirm",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "proof",
+                  "type": "file",
+                  "src": "/path/to/receipt.jpg",
+                  "description": "Payment proof image (JPEG/PNG, max 10 MB)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Confirm Payment — 400 No File",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/payments/{{payment_id}}/confirm",
+            "body": { "mode": "formdata", "formdata": [] }
+          }
+        },
+        {
+          "name": "Confirm Payment — 404",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/payments/00000000-0000-0000-0000-000000000000/confirm",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "proof", "type": "file", "src": "/path/to/receipt.jpg" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Waste Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/reports/waste-summary"
+          }
+        },
+        {
+          "name": "Payment Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/reports/payment-summary"
+          }
+        },
+        {
+          "name": "Household History",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/reports/households/{{household_id}}/history"
+          }
+        },
+        {
+          "name": "Household History — 404",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/reports/households/00000000-0000-0000-0000-000000000000/history"
+          }
+        }
+      ]
+    }
+  ]
+}
