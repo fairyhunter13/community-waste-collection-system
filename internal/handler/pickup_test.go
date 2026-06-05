@@ -174,3 +174,53 @@ func (s *PickupHandlerSuite) TestListPickups_400_InvalidStatus() {
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusBadRequest, rec.Code)
 }
+
+func (s *PickupHandlerSuite) TestListPickups_400_InvalidHouseholdID() {
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/pickups?household_id=not-a-uuid", nil)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusBadRequest, rec.Code)
+}
+
+func (s *PickupHandlerSuite) TestListPickups_200_WithHouseholdFilter() {
+	pickups := []*domain.WastePickup{{ID: uuid.New()}}
+	s.pSvc.On("List", mock.Anything, mock.AnythingOfType("domain.PickupFilter")).Return(pickups, 1, nil)
+
+	id := uuid.New()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/pickups?household_id="+id.String(), nil)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusOK, rec.Code)
+}
+
+func (s *PickupHandlerSuite) TestListPickups_200_WithStatusFilter() {
+	pickups := []*domain.WastePickup{{ID: uuid.New()}}
+	s.pSvc.On("List", mock.Anything, mock.AnythingOfType("domain.PickupFilter")).Return(pickups, 1, nil)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/pickups?status=pending", nil)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusOK, rec.Code)
+}
+
+func (s *PickupHandlerSuite) TestSchedulePickup_400_ValidationError() {
+	id := uuid.New()
+	s.pSvc.On("Schedule", mock.Anything, id, mock.Anything).Return(nil, domain.ErrValidation)
+
+	body := fmt.Sprintf(`{"pickup_date":"%s"}`, time.Now().Add(24*time.Hour).Format(time.RFC3339))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/schedule", strings.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusBadRequest, rec.Code)
+}
+
+func (s *PickupHandlerSuite) TestCompletePickup_500_InternalError() {
+	id := uuid.New()
+	s.pSvc.On("Complete", mock.Anything, id).Return(nil, domain.ErrInternalFailure)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/pickups/"+id.String()+"/complete", nil)
+	rec := httptest.NewRecorder()
+	s.echo.ServeHTTP(rec, req)
+	s.Equal(http.StatusInternalServerError, rec.Code)
+}

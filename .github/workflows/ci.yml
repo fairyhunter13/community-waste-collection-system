@@ -49,9 +49,10 @@ jobs:
 
       - name: Run unit tests
         run: |
+          COVERPKG=$(go list ./internal/... | grep -Ev '/mocks$|/repository$|/observability$' | paste -sd, -)
           go test -race -count=1 \
             -coverprofile=coverage.out \
-            -coverpkg=./internal/... \
+            -coverpkg="${COVERPKG}" \
             ./internal/... -v
 
       - name: Upload coverage artifact
@@ -79,9 +80,10 @@ jobs:
 
       - name: Run integration tests
         run: |
+          COVERPKG=$(go list ./internal/... | grep -Ev '/mocks$|/observability$' | paste -sd, -)
           go test -race -count=1 -tags=integration \
             -coverprofile=coverage-integration.out \
-            -coverpkg=./internal/... \
+            -coverpkg="${COVERPKG}" \
             ./internal/repository/... ./internal/service/... \
             -timeout 120s -v
 
@@ -125,7 +127,7 @@ jobs:
           TOTAL=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
           echo "Total unit coverage: ${TOTAL}%"
 
-          MIN=70
+          MIN=80
           if awk "BEGIN { exit !($TOTAL < $MIN) }"; then
             echo "FAIL: coverage ${TOTAL}% is below minimum ${MIN}%"
             exit 1
