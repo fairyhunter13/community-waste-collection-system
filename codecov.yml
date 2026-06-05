@@ -1,0 +1,27 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 2%
+        base: auto
+    patch:
+      default:
+        target: 70%
+        threshold: 5%
+
+  range: "60...90"
+
+comment:
+  layout: "reach,diff,files"
+  behavior: default
+  require_changes: true
+  require_base: false
+  require_head: true
+
+ignore:
+  - "internal/mocks/**"
+  - "cmd/**"
+  - "test/**"
+  - "scripts/**"
+  - "migrations/**"
