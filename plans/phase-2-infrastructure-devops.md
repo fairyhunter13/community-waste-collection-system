@@ -306,7 +306,6 @@ linters:
   settings:
     cyclop:
       max-complexity: 15
-      skip-tests: true
 
     exhaustive:
       default-signifies-exhaustive: true
@@ -334,6 +333,11 @@ linters:
         - HACK
         - BUG
 
+  exclusions:
+    rules:
+      - path: "_test\\.go"
+        linters: [gosec, cyclop]
+
 formatters:
   enable:
     - goimports        # gofmt + correct import grouping (stdlib / external / internal)
@@ -344,11 +348,6 @@ formatters:
 
 issues:
   max-same-issues: 0
-  exclude-rules:
-    - path: "_test\\.go"
-      linters: [gosec, cyclop]
-    - path: "cmd/"
-      linters: [gochecknoinits]
 ```
 
 ---
