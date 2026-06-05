@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
@@ -144,7 +145,7 @@ func (s *PickupRepoSuite) TestHasPendingPaymentForHousehold_True() {
 	payment := &domain.Payment{
 		HouseholdID: h.ID,
 		WasteID:     p.ID,
-		Amount:      "50000.00",
+		Amount:      decimal.RequireFromString("50000.00"),
 		Status:      domain.PaymentStatusPending,
 	}
 	s.Require().NoError(paymentRepo.Create(s.T().Context(), payment))
@@ -190,4 +191,64 @@ func (s *PickupRepoSuite) TestBulkCancel_CancelsAll() {
 
 func (s *PickupRepoSuite) TestBulkCancel_EmptySlice_NoError() {
 	s.Require().NoError(s.repo.BulkCancel(s.T().Context(), nil))
+}
+
+func (s *PickupRepoSuite) TestList_FilterByStatusAndHousehold() {
+	h1 := s.newHousehold()
+	h2 := s.newHousehold()
+	p1 := s.newPickup(h1.ID, domain.WasteTypeOrganic) // pending, h1
+	_ = s.newPickup(h1.ID, domain.WasteTypePlastic)   // pending, h1 — cancel it
+	_ = s.newPickup(h2.ID, domain.WasteTypeOrganic)   // pending, h2
+
+	s.Require().NoError(s.repo.UpdateStatus(s.T().Context(), p1.ID, domain.PickupStatusScheduled))
+
+	status := domain.PickupStatusScheduled
+	filter := domain.PickupFilter{HouseholdID: &h1.ID, Status: &status, Page: 1, PerPage: 20}
+	pickups, total, err := s.repo.List(s.T().Context(), filter)
+	s.Require().NoError(err)
+	s.Equal(1, total)
+	s.Equal(p1.ID, pickups[0].ID)
+}
+
+func (s *PickupRepoSuite) TestCancelIfCancellable_PendingPickup() {
+	h := s.newHousehold()
+	p := s.newPickup(h.ID, domain.WasteTypeOrganic)
+
+	ok, err := s.repo.CancelIfCancellable(s.T().Context(), p.ID)
+	s.Require().NoError(err)
+	s.True(ok)
+
+	got, err := s.repo.FindByID(s.T().Context(), p.ID)
+	s.Require().NoError(err)
+	s.Equal(domain.PickupStatusCanceled, got.Status)
+}
+
+func (s *PickupRepoSuite) TestCancelIfCancellable_CompletedPickup() {
+	h := s.newHousehold()
+	p := s.newPickup(h.ID, domain.WasteTypeOrganic)
+	s.Require().NoError(s.repo.UpdateStatus(s.T().Context(), p.ID, domain.PickupStatusCompleted))
+
+	ok, err := s.repo.CancelIfCancellable(s.T().Context(), p.ID)
+	s.Require().NoError(err)
+	s.False(ok)
+
+	got, err := s.repo.FindByID(s.T().Context(), p.ID)
+	s.Require().NoError(err)
+	s.Equal(domain.PickupStatusCompleted, got.Status)
+}
+
+func (s *PickupRepoSuite) TestCancelIfCancellable_NonExistentID() {
+	ok, err := s.repo.CancelIfCancellable(s.T().Context(), uuid.New())
+	s.Require().NoError(err)
+	s.False(ok)
+}
+
+func (s *PickupRepoSuite) TestCreate_NonExistentHousehold_ReturnsNotFound() {
+	p := &domain.WastePickup{
+		HouseholdID: uuid.New(), // does not exist
+		Type:        domain.WasteTypeOrganic,
+		Status:      domain.PickupStatusPending,
+	}
+	err := s.repo.Create(s.T().Context(), p)
+	s.Require().ErrorIs(err, domain.ErrNotFound)
 }

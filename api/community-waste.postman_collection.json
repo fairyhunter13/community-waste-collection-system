@@ -135,6 +135,31 @@
           }
         },
         {
+          "name": "Create Pickup — 429 Rate Limited",
+          "description": "Send this request 11+ times in rapid succession to trigger rate limiting (burst=10 per IP). Server enforces 5 req/s with burst 10 on POST /api/pickups.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 429', () => pm.response.to.have.status(429));",
+                  "const body = pm.response.json();",
+                  "pm.test('RATE_LIMITED code', () => pm.expect(body.error.code).to.equal('RATE_LIMITED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/pickups",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"household_id\": \"{{household_id}}\", \"type\": \"organic\"}"
+            }
+          }
+        },
+        {
           "name": "List Pickups",
           "request": {
             "method": "GET",

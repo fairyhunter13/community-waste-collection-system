@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 )
 
 // WasteType represents the category of waste for a pickup request.
@@ -14,6 +15,7 @@ type WasteType string
 // PickupStatus represents the lifecycle state of a waste pickup.
 type PickupStatus string
 
+// WasteType enum values.
 const (
 	WasteTypeOrganic    WasteType = "organic"
 	WasteTypePlastic    WasteType = "plastic"
@@ -21,6 +23,7 @@ const (
 	WasteTypeElectronic WasteType = "electronic"
 )
 
+// PickupStatus enum values.
 const (
 	PickupStatusPending   PickupStatus = "pending"
 	PickupStatusScheduled PickupStatus = "scheduled"
@@ -29,11 +32,11 @@ const (
 )
 
 // PaymentAmounts maps waste type to the fixed payment amount in whole currency units.
-var PaymentAmounts = map[WasteType]string{
-	WasteTypeOrganic:    "50000.00",
-	WasteTypePlastic:    "50000.00",
-	WasteTypePaper:      "50000.00",
-	WasteTypeElectronic: "100000.00",
+var PaymentAmounts = map[WasteType]decimal.Decimal{
+	WasteTypeOrganic:    decimal.RequireFromString("50000.00"),
+	WasteTypePlastic:    decimal.RequireFromString("50000.00"),
+	WasteTypePaper:      decimal.RequireFromString("50000.00"),
+	WasteTypeElectronic: decimal.RequireFromString("100000.00"),
 }
 
 // WastePickup represents a household waste pickup request.
@@ -50,7 +53,7 @@ type WastePickup struct {
 
 // CreatePickupRequest is the input for creating a new pickup request.
 type CreatePickupRequest struct {
-	HouseholdID uuid.UUID `json:"household_id" validate:"required"`
+	HouseholdID uuid.UUID `json:"household_id" validate:"required,db_exists_household"`
 	Type        WasteType `json:"type"         validate:"required,oneof=organic plastic paper electronic"`
 	SafetyCheck bool      `json:"safety_check"`
 }
@@ -78,6 +81,9 @@ type PickupRepository interface {
 	FindExpiredOrganic(ctx context.Context, before time.Time) ([]*WastePickup, error)
 	BulkCancel(ctx context.Context, ids []uuid.UUID) error
 	HasPendingPaymentForHousehold(ctx context.Context, householdID uuid.UUID) (bool, error)
+	// CancelIfCancellable atomically cancels a pickup only if it is in a cancellable state
+	// (pending or scheduled). Returns true if the row was updated, false otherwise.
+	CancelIfCancellable(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
 // PickupService defines business operations for waste pickups.

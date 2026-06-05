@@ -4,6 +4,7 @@ package e2e_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,7 +12,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/suite"
+	_ "github.com/lib/pq"
 )
 
 const defaultBaseURL = "http://localhost:8080"
@@ -20,6 +23,7 @@ type E2ESuite struct {
 	suite.Suite
 	baseURL string
 	client  *http.Client
+	db      *sqlx.DB
 }
 
 func (s *E2ESuite) SetupSuite() {
@@ -28,6 +32,23 @@ func (s *E2ESuite) SetupSuite() {
 		s.baseURL = defaultBaseURL
 	}
 	s.client = &http.Client{}
+	if url := os.Getenv("E2E_DB_URL"); url != "" {
+		s.db, _ = sqlx.Connect("postgres", url)
+	}
+}
+
+func (s *E2ESuite) TearDownSuite() {
+	if s.db != nil {
+		s.db.Close()
+	}
+}
+
+func (s *E2ESuite) execDB(query string, args ...any) {
+	if s.db == nil {
+		s.T().Skip("E2E_DB_URL not set")
+	}
+	_, err := s.db.ExecContext(context.Background(), query, args...)
+	s.Require().NoError(err)
 }
 
 func TestE2E(t *testing.T) {

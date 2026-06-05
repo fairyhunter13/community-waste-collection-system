@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -34,7 +35,7 @@ func (s *HouseholdHandlerSuite) SetupTest() {
 	s.pSvc = mocks.NewPickupService(s.T())
 	s.paySvc = mocks.NewPaymentService(s.T())
 	s.rptSvc = mocks.NewReportService(s.T())
-	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load())
+	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load(), nil)
 	s.h.RegisterRoutes(s.echo)
 }
 
@@ -48,7 +49,7 @@ func (s *HouseholdHandlerSuite) TestCreateHousehold_201() {
 		Return(household, nil)
 
 	body := `{"owner_name":"John","address":"Jl. 1"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/households", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/households", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
@@ -60,7 +61,7 @@ func (s *HouseholdHandlerSuite) TestCreateHousehold_201() {
 }
 
 func (s *HouseholdHandlerSuite) TestCreateHousehold_400_InvalidJSON() {
-	req := httptest.NewRequest(http.MethodPost, "/api/households", strings.NewReader(`not json`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/households", strings.NewReader(`not json`))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
@@ -72,7 +73,7 @@ func (s *HouseholdHandlerSuite) TestGetHousehold_200() {
 	household := &domain.Household{ID: id, OwnerName: "Jane"}
 	s.hSvc.On("GetByID", mock.Anything, id).Return(household, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/households/"+id.String(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/households/"+id.String(), nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusOK, rec.Code)
@@ -82,7 +83,7 @@ func (s *HouseholdHandlerSuite) TestGetHousehold_404() {
 	id := uuid.New()
 	s.hSvc.On("GetByID", mock.Anything, id).Return(nil, domain.ErrNotFound)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/households/"+id.String(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/households/"+id.String(), nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusNotFound, rec.Code)
@@ -92,7 +93,7 @@ func (s *HouseholdHandlerSuite) TestListHouseholds_200() {
 	households := []*domain.Household{{ID: uuid.New()}}
 	s.hSvc.On("List", mock.Anything, 1, 20).Return(households, 1, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/households", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/households", nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusOK, rec.Code)
@@ -106,7 +107,7 @@ func (s *HouseholdHandlerSuite) TestDeleteHousehold_204() {
 	id := uuid.New()
 	s.hSvc.On("Delete", mock.Anything, id).Return(nil)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/households/"+id.String(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/api/households/"+id.String(), nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusNoContent, rec.Code)
@@ -116,7 +117,7 @@ func (s *HouseholdHandlerSuite) TestDeleteHousehold_404() {
 	id := uuid.New()
 	s.hSvc.On("Delete", mock.Anything, id).Return(domain.ErrNotFound)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/households/"+id.String(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/api/households/"+id.String(), nil)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusNotFound, rec.Code)

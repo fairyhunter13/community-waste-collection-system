@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -37,7 +38,27 @@ func (h *Handler) ListPayments(c echo.Context) error {
 	}
 	if s := c.QueryParam("status"); s != "" {
 		status := domain.PaymentStatus(s)
-		filter.Status = &status
+		switch status {
+		case domain.PaymentStatusPending, domain.PaymentStatusPaid, domain.PaymentStatusFailed:
+			filter.Status = &status
+		default:
+			return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR",
+				"invalid status: must be pending, paid, or failed")
+		}
+	}
+	if df := c.QueryParam("date_from"); df != "" {
+		t, err := time.Parse(time.RFC3339, df)
+		if err != nil {
+			return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid date_from: must be RFC3339")
+		}
+		filter.DateFrom = &t
+	}
+	if dt := c.QueryParam("date_to"); dt != "" {
+		t, err := time.Parse(time.RFC3339, dt)
+		if err != nil {
+			return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid date_to: must be RFC3339")
+		}
+		filter.DateTo = &t
 	}
 
 	payments, total, err := h.paymentSvc.List(c.Request().Context(), filter)
@@ -62,7 +83,7 @@ func (h *Handler) ConfirmPayment(c echo.Context) error {
 		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR",
 			fmt.Sprintf("proof file required: %v", err))
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	contentType := header.Header.Get("Content-Type")
 	if contentType == "" {

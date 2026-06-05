@@ -1,10 +1,12 @@
 package service_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -29,6 +31,21 @@ func (s *PickupServiceSuite) SetupTest() {
 
 func TestPickupService(t *testing.T) {
 	suite.Run(t, new(PickupServiceSuite))
+}
+
+// ── List ──────────────────────────────────────────────────────────────────────
+
+func (s *PickupServiceSuite) TestList_DelegatesToRepo() {
+	filter := domain.PickupFilter{Page: 1, PerPage: 10}
+	pickups := []*domain.WastePickup{
+		{ID: uuid.New(), Status: domain.PickupStatusPending},
+	}
+	s.pickupRepo.On("List", mock.Anything, filter).Return(pickups, 1, nil)
+
+	got, total, err := s.svc.List(s.T().Context(), filter)
+	s.Require().NoError(err)
+	s.Equal(1, total)
+	s.Equal(pickups, got)
 }
 
 // ── Create ────────────────────────────────────────────────────────────────────
@@ -139,25 +156,26 @@ func (s *PickupServiceSuite) TestComplete_RejectsNonScheduledStatus() {
 // The full atomic behaviour is covered by integration tests.
 func (s *PickupServiceSuite) TestComplete_BR05_AmountOrganic() {
 	// Complete relies on a real DB tx; test the amount lookup separately.
-	s.Equal("50000.00", domain.PaymentAmounts[domain.WasteTypeOrganic])
+	s.Equal(decimal.RequireFromString("50000.00"), domain.PaymentAmounts[domain.WasteTypeOrganic])
 }
 
 func (s *PickupServiceSuite) TestComplete_BR05_AmountElectronic() {
-	s.Equal("100000.00", domain.PaymentAmounts[domain.WasteTypeElectronic])
+	s.Equal(decimal.RequireFromString("100000.00"), domain.PaymentAmounts[domain.WasteTypeElectronic])
 }
 
 func (s *PickupServiceSuite) TestComplete_BR05_AmountPlastic() {
-	s.Equal("50000.00", domain.PaymentAmounts[domain.WasteTypePlastic])
+	s.Equal(decimal.RequireFromString("50000.00"), domain.PaymentAmounts[domain.WasteTypePlastic])
 }
 
 func (s *PickupServiceSuite) TestComplete_BR05_AmountPaper() {
-	s.Equal("50000.00", domain.PaymentAmounts[domain.WasteTypePaper])
+	s.Equal(decimal.RequireFromString("50000.00"), domain.PaymentAmounts[domain.WasteTypePaper])
 }
 
 // ── Cancel ────────────────────────────────────────────────────────────────────
 
 func (s *PickupServiceSuite) TestCancel_RejectsCompleted() {
 	id := uuid.New()
+	s.pickupRepo.On("CancelIfCancellable", mock.Anything, id).Return(false, nil)
 	s.pickupRepo.On("FindByID", mock.Anything, id).Return(&domain.WastePickup{
 		ID:     id,
 		Status: domain.PickupStatusCompleted,
@@ -169,6 +187,7 @@ func (s *PickupServiceSuite) TestCancel_RejectsCompleted() {
 
 func (s *PickupServiceSuite) TestCancel_RejectsAlreadyCanceled() {
 	id := uuid.New()
+	s.pickupRepo.On("CancelIfCancellable", mock.Anything, id).Return(false, nil)
 	s.pickupRepo.On("FindByID", mock.Anything, id).Return(&domain.WastePickup{
 		ID:     id,
 		Status: domain.PickupStatusCanceled,
@@ -180,11 +199,11 @@ func (s *PickupServiceSuite) TestCancel_RejectsAlreadyCanceled() {
 
 func (s *PickupServiceSuite) TestCancel_Success_FromPending() {
 	id := uuid.New()
+	s.pickupRepo.On("CancelIfCancellable", mock.Anything, id).Return(true, nil)
 	s.pickupRepo.On("FindByID", mock.Anything, id).Return(&domain.WastePickup{
 		ID:     id,
-		Status: domain.PickupStatusPending,
+		Status: domain.PickupStatusCanceled,
 	}, nil)
-	s.pickupRepo.On("UpdateStatus", mock.Anything, id, domain.PickupStatusCanceled).Return(nil)
 
 	got, err := s.svc.Cancel(s.T().Context(), id)
 	s.Require().NoError(err)
@@ -193,13 +212,40 @@ func (s *PickupServiceSuite) TestCancel_Success_FromPending() {
 
 func (s *PickupServiceSuite) TestCancel_Success_FromScheduled() {
 	id := uuid.New()
+	s.pickupRepo.On("CancelIfCancellable", mock.Anything, id).Return(true, nil)
 	s.pickupRepo.On("FindByID", mock.Anything, id).Return(&domain.WastePickup{
 		ID:     id,
-		Status: domain.PickupStatusScheduled,
+		Status: domain.PickupStatusCanceled,
 	}, nil)
-	s.pickupRepo.On("UpdateStatus", mock.Anything, id, domain.PickupStatusCanceled).Return(nil)
 
 	got, err := s.svc.Cancel(s.T().Context(), id)
 	s.Require().NoError(err)
 	s.Equal(domain.PickupStatusCanceled, got.Status)
+}
+
+func (s *PickupServiceSuite) TestSchedule_PastDate_ReturnsValidation() {
+	id := uuid.New()
+	s.pickupRepo.On("FindByID", mock.Anything, id).Return(&domain.WastePickup{
+		ID:     id,
+		Status: domain.PickupStatusPending,
+		Type:   domain.WasteTypeOrganic,
+	}, nil)
+
+	_, err := s.svc.Schedule(s.T().Context(), id, domain.SchedulePickupRequest{
+		PickupDate: time.Now().Add(-24 * time.Hour),
+	})
+	s.Require().ErrorIs(err, domain.ErrValidation)
+}
+
+func (s *PickupServiceSuite) TestCreate_HouseholdNotFound_PropagatesError() {
+	s.pickupRepo.On("HasPendingPaymentForHousehold", mock.Anything, mock.AnythingOfType("uuid.UUID")).
+		Return(false, nil)
+	s.pickupRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.WastePickup")).
+		Return(fmt.Errorf("household not found: %w", domain.ErrNotFound))
+
+	_, err := s.svc.Create(s.T().Context(), domain.CreatePickupRequest{
+		HouseholdID: uuid.New(),
+		Type:        domain.WasteTypeOrganic,
+	})
+	s.Require().ErrorIs(err, domain.ErrNotFound)
 }

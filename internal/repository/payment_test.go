@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
@@ -51,7 +52,7 @@ func (s *PaymentRepoSuite) newPayment(householdID, wasteID uuid.UUID) *domain.Pa
 	p := &domain.Payment{
 		HouseholdID: householdID,
 		WasteID:     wasteID,
-		Amount:      "50000.00",
+		Amount:      decimal.RequireFromString("50000.00"),
 		Status:      domain.PaymentStatusPending,
 	}
 	s.Require().NoError(s.repo.Create(s.T().Context(), p))
@@ -77,7 +78,7 @@ func (s *PaymentRepoSuite) TestFindByID_Found() {
 	got, err := s.repo.FindByID(s.T().Context(), payment.ID)
 	s.Require().NoError(err)
 	s.Equal(payment.ID, got.ID)
-	s.Equal("50000.00", got.Amount)
+	s.Equal(decimal.RequireFromString("50000.00"), got.Amount)
 }
 
 func (s *PaymentRepoSuite) TestFindByID_NotFound() {
@@ -95,7 +96,7 @@ func (s *PaymentRepoSuite) TestCreateWithTx_Atomic() {
 	payment := &domain.Payment{
 		HouseholdID: h.ID,
 		WasteID:     pickup.ID,
-		Amount:      "50000.00",
+		Amount:      decimal.RequireFromString("50000.00"),
 		Status:      domain.PaymentStatusPending,
 	}
 	s.Require().NoError(s.repo.CreateWithTx(s.T().Context(), tx, payment))
@@ -233,4 +234,74 @@ func (s *PaymentRepoSuite) TestHouseholdHistory_ReturnsCompleteHistory() {
 func (s *PaymentRepoSuite) TestHouseholdHistory_NotFound() {
 	_, err := s.repo.HouseholdHistory(s.T().Context(), uuid.New())
 	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
+
+func (s *PaymentRepoSuite) TestConfirm_AlreadyPaid_ReturnsConflict() {
+	h := s.newHousehold()
+	p := s.newPickup(h.ID)
+	payment := s.newPayment(h.ID, p.ID)
+
+	proofURL := "http://localhost:9000/waste-proofs/proof1.jpg"
+	s.Require().NoError(s.repo.Confirm(s.T().Context(), payment.ID, proofURL, time.Now()))
+
+	// Second confirm on the same payment should return ErrConflict.
+	err := s.repo.Confirm(s.T().Context(), payment.ID, "http://localhost:9000/waste-proofs/proof2.jpg", time.Now())
+	s.Require().ErrorIs(err, domain.ErrConflict)
+}
+
+func (s *PaymentRepoSuite) TestList_FilterByHousehold() {
+	h1 := s.newHousehold()
+	h2 := s.newHousehold()
+	p1 := s.newPickup(h1.ID)
+	p2 := s.newPickup(h2.ID)
+	pay1 := s.newPayment(h1.ID, p1.ID)
+	_ = s.newPayment(h2.ID, p2.ID)
+
+	payments, total, err := s.repo.List(s.T().Context(), domain.PaymentFilter{
+		HouseholdID: &h1.ID,
+		Page:        1,
+		PerPage:     20,
+	})
+	s.Require().NoError(err)
+	s.Equal(1, total)
+	s.Equal(pay1.ID, payments[0].ID)
+}
+
+func (s *PaymentRepoSuite) TestCreate_NonExistentHousehold_ReturnsNotFound() {
+	p := &domain.Payment{
+		HouseholdID: uuid.New(), // does not exist
+		WasteID:     uuid.New(),
+		Amount:      decimal.RequireFromString("50000.00"),
+		Status:      domain.PaymentStatusPending,
+	}
+	err := s.repo.Create(s.T().Context(), p)
+	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
+
+func (s *PaymentRepoSuite) TestCreate_NonExistentWasteID_ReturnsNotFound() {
+	h := s.newHousehold()
+	p := &domain.Payment{
+		HouseholdID: h.ID,
+		WasteID:     uuid.New(), // does not exist
+		Amount:      decimal.RequireFromString("50000.00"),
+		Status:      domain.PaymentStatusPending,
+	}
+	err := s.repo.Create(s.T().Context(), p)
+	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
+
+func (s *PaymentRepoSuite) TestCreate_DuplicateWasteID_ReturnsConflict() {
+	h := s.newHousehold()
+	pickup := s.newPickup(h.ID)
+	_ = s.newPayment(h.ID, pickup.ID)
+
+	// Second payment for the same pickup should fail (waste_id is UNIQUE).
+	p2 := &domain.Payment{
+		HouseholdID: h.ID,
+		WasteID:     pickup.ID,
+		Amount:      decimal.RequireFromString("50000.00"),
+		Status:      domain.PaymentStatusPending,
+	}
+	err := s.repo.Create(s.T().Context(), p2)
+	s.Require().ErrorIs(err, domain.ErrConflict)
 }
