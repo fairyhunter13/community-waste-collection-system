@@ -23,3 +23,12 @@ func Connect(cfg *config.Config) (*sqlx.DB, error) {
 
 	return db, nil
 }
+
+// MustConnect opens a PostgreSQL connection from a URL or panics. Use only in tests or program init.
+func MustConnect(url string) *sqlx.DB {
+	db, err := sqlx.Connect("postgres", url)
+	if err != nil {
+		panic(fmt.Sprintf("db connect: %v", err))
+	}
+	return db
+}
