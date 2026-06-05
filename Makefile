@@ -20,7 +20,7 @@ build:
 	CGO_ENABLED=0 go build -ldflags="-w -s" -o bin/$(BINARY) $(CMD)
 
 clean:
-	rm -rf bin/ coverage.out coverage.html
+	rm -rf bin/ coverage.out coverage-integration.out coverage.html
 
 lint:
 	golangci-lint run ./...
@@ -40,6 +40,8 @@ test-unit:
 
 test-integration:
 	go test -race -count=1 -tags=integration \
+	    -coverprofile=coverage-integration.out \
+	    -coverpkg=./internal/... \
 	    ./internal/repository/... ./internal/service/... \
 	    -timeout 120s -v
 
@@ -56,6 +58,13 @@ bench:
 coverage:
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+
+coverage-all:
+	go test -race -count=1 -tags=integration \
+	    -coverprofile=coverage.out \
+	    -coverpkg=./internal/... \
+	    ./internal/... -timeout 120s
+	go tool cover -func=coverage.out | tail -1
 
 migrate-up:
 	migrate -path $(MIGRATIONS) -database "$(DB_URL)" up
