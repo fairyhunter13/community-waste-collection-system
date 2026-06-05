@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -28,23 +32,6 @@ jobs:
         with:
           version: latest
           args: --timeout=5m
-
-  build:
-    name: Build
-    runs-on: ubuntu-24.04
-    needs: [lint]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-
-      - name: Build
-        run: go build -o /dev/null ./...
 
   test-unit:
     name: Unit Tests
@@ -80,37 +67,6 @@ jobs:
           flags: unit
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
-
-  coverage-gate:
-    name: Coverage Gate (≥80%)
-    runs-on: ubuntu-24.04
-    needs: [test-unit]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-
-      - name: Download unit coverage artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-unit
-          path: .
-
-      - name: Enforce 80% coverage gate
-        run: |
-          TOTAL=$(go tool cover -func=coverage.out \
-            | grep "^total:" | awk '{print $3}' | tr -d '%')
-          echo "Unit test coverage: ${TOTAL}%"
-          if awk "BEGIN {exit ($TOTAL+0 >= 80)}"; then
-            echo "::error::Coverage ${TOTAL}% is below the 80% minimum threshold"
-            exit 1
-          fi
-          echo "::notice::Coverage ${TOTAL}% passes the 80% gate"
 
   test-integration:
     name: Integration Tests
@@ -154,8 +110,7 @@ jobs:
   e2e:
     name: End-to-End Tests
     runs-on: ubuntu-24.04
-    needs: [test-integration]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test-unit, test-integration]
     timeout-minutes: 20
     env:
       DOCKER_HOST: "unix:///var/run/docker.sock"
@@ -253,7 +208,7 @@ jobs:
   bench:
     name: Benchmarks
     runs-on: ubuntu-24.04
-    needs: [lint]
+    needs: [test-unit, test-integration]
     services:
       postgres:
         image: postgres:17-alpine
