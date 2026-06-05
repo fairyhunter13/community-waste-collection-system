@@ -287,10 +287,10 @@ const (
 
 // Payment amounts by waste type
 var PaymentAmounts = map[WasteType]decimal.Decimal{
-    WasteTypeOrganic:    decimal.NewFromInt(50000),
-    WasteTypePlastic:    decimal.NewFromInt(50000),
-    WasteTypePaper:      decimal.NewFromInt(50000),
-    WasteTypeElectronic: decimal.NewFromInt(100000),
+    WasteTypeOrganic:    decimal.RequireFromString("50000.00"),
+    WasteTypePlastic:    decimal.RequireFromString("50000.00"),
+    WasteTypePaper:      decimal.RequireFromString("50000.00"),
+    WasteTypeElectronic: decimal.RequireFromString("100000.00"),
 }
 ```
 
@@ -347,7 +347,7 @@ default:
 
 ---
 
-## 5. Go 1.26.4 Features Leveraged
+## 5. Go 1.26 Features Leveraged
 
 | Feature | Go Version | Where Applied |
 |---|---|---|
@@ -499,5 +499,21 @@ Request arrives
 ### ADR-009: amount as NUMERIC(12,2) not float
 **Status:** Accepted
 **Context:** Floating point arithmetic produces rounding errors (e.g., `0.1 + 0.2 != 0.3`). Financial values must be exact.
-**Decision:** Store `amount` as PostgreSQL `NUMERIC(12,2)`. Represent in Go as a decimal type or as integer cents (50000 = 50,000.00). Never use `float64` for money.
-**Consequences:** Requires decimal-aware scanning from sqlx; slight verbosity in Go code; exact arithmetic guaranteed.
+**Decision:** Store `amount` as PostgreSQL `NUMERIC(12,2)`. Represent in Go as a decimal type. Never use `float64` for money.
+**Consequences:** Requires decimal-aware scanning from sqlx; slight verbosity in Go code; exact arithmetic guaranteed. Implementation uses `github.com/shopspring/decimal` v1.4.0 — see ADR-010.
+
+---
+
+### ADR-010: shopspring/decimal for Monetary Values in Go
+**Status:** Accepted
+**Context:** ADR-009 established `NUMERIC(12,2)` in PostgreSQL but left the Go representation open. Options considered: (1) `string` — safe but no arithmetic; (2) `int64` cents — arithmetic possible but verbose; (3) `shopspring/decimal.Decimal` — type-safe arithmetic, implements `database/sql.Scanner` and `driver.Valuer`, JSON marshals as quoted string (`"50000.00"`).
+**Decision:** Use `github.com/shopspring/decimal` v1.4.0. `decimal.Decimal` scans `NUMERIC(12,2)` via sqlx without casts. The `positive_decimal` custom validator uses `d.IsPositive()` instead of `strconv.ParseFloat`. Wire format is unchanged (`"50000.00"` quoted string).
+**Consequences:** No DB migration; no API contract change. `decimal.RequireFromString()` used in `PaymentAmounts` map initialization and test fixtures. `strconv` import retained only for `paginationParams`.
+
+---
+
+### ADR-011: DB-backed Validators at Handler Layer for FK Fields
+**Status:** Accepted
+**Context:** `POST /api/pickups` and `POST /api/payments` accept UUIDs that must reference existing rows. Previously, invalid IDs surfaced as FK constraint errors at the DB layer (mapped to 404). This conflates "resource not found" with "invalid FK reference on creation" — 404 is misleading for a request where the resource being created doesn't yet exist.
+**Decision:** Register `db_exists_household` and `db_exists_pickup` validators via `go-playground/validator`'s `RegisterValidationCtx`. They run at `bindAndValidate()` time using `v.StructCtx(c.Request().Context(), dst)`. Non-existent FK references → `400 VALIDATION_ERROR` before the service is invoked. `handler.New()` accepts `db *sqlx.DB` as its last parameter. When `db == nil` (handler unit tests), validators return `true` (passthrough) — existing unit tests are unaffected.
+**Consequences:** Non-existent IDs on creation → 400 not 404. Three E2E tests updated to expect 400. Repo-layer FK error mapping retained as safety net for race conditions.

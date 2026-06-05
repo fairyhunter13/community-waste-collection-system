@@ -7,11 +7,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 )
 
 // PaymentStatus represents the lifecycle state of a payment.
 type PaymentStatus string
 
+// PaymentStatus enum values.
 const (
 	PaymentStatusPending PaymentStatus = "pending"
 	PaymentStatusPaid    PaymentStatus = "paid"
@@ -20,22 +22,22 @@ const (
 
 // Payment represents a payment record associated with a completed waste pickup.
 type Payment struct {
-	ID           uuid.UUID     `db:"id"             json:"id"`
-	HouseholdID  uuid.UUID     `db:"household_id"   json:"household_id"`
-	WasteID      uuid.UUID     `db:"waste_id"       json:"waste_id"`
-	Amount       string        `db:"amount"         json:"amount"`
-	PaymentDate  *time.Time    `db:"payment_date"   json:"payment_date"`
-	Status       PaymentStatus `db:"status"         json:"status"`
-	ProofFileURL *string       `db:"proof_file_url" json:"proof_file_url"`
-	CreatedAt    time.Time     `db:"created_at"     json:"created_at"`
-	UpdatedAt    time.Time     `db:"updated_at"     json:"updated_at"`
+	ID           uuid.UUID       `db:"id"             json:"id"`
+	HouseholdID  uuid.UUID       `db:"household_id"   json:"household_id"`
+	WasteID      uuid.UUID       `db:"waste_id"       json:"waste_id"`
+	Amount       decimal.Decimal `db:"amount"         json:"amount"`
+	PaymentDate  *time.Time      `db:"payment_date"   json:"payment_date"`
+	Status       PaymentStatus   `db:"status"         json:"status"`
+	ProofFileURL *string         `db:"proof_file_url" json:"proof_file_url"`
+	CreatedAt    time.Time       `db:"created_at"     json:"created_at"`
+	UpdatedAt    time.Time       `db:"updated_at"     json:"updated_at"`
 }
 
 // CreatePaymentRequest is the input for creating a new payment record.
 type CreatePaymentRequest struct {
-	HouseholdID uuid.UUID `json:"household_id" validate:"required"`
-	WasteID     uuid.UUID `json:"waste_id"     validate:"required"`
-	Amount      string    `json:"amount"       validate:"required"`
+	HouseholdID uuid.UUID       `json:"household_id" validate:"required,db_exists_household"`
+	WasteID     uuid.UUID       `json:"waste_id"     validate:"required,db_exists_pickup"`
+	Amount      decimal.Decimal `json:"amount"       validate:"required,positive_decimal"`
 }
 
 // PaymentFilter defines optional filters for listing payments.

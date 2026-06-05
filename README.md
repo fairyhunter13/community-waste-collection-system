@@ -6,7 +6,7 @@
 A RESTful API service for managing community household waste collection,
 pickup scheduling, and payment processing.
 
-Built with Go 1.25, Echo v4, PostgreSQL 17, MinIO, and Docker.
+Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker.
 
 ---
 
@@ -25,7 +25,7 @@ Built with Go 1.25, Echo v4, PostgreSQL 17, MinIO, and Docker.
 
 ## Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Docker + Docker Compose
 - `make`
 - (Optional) [`migrate` CLI](https://github.com/golang-migrate/migrate) for manual migration runs
@@ -90,7 +90,7 @@ docker compose up -d postgres minio otel-collector
 make migrate-up
 
 # 3. (Optional) Seed demo data
-psql "$DATABASE_URL" -f scripts/seed.sql
+make seed   # or: psql "$DATABASE_URL" -f scripts/seed.sql
 
 # 4. Run the API
 make run
@@ -107,13 +107,21 @@ make test
 # Integration tests (spins up Postgres via testcontainers)
 make test-integration
 
-# E2E tests (requires the full stack running via docker-compose)
+# E2E tests (requires full stack via docker-compose)
 make docker-up && make migrate-up
 make test-e2e
 
-# Benchmarks (integration tag, requires DATABASE_URL)
+# HTTP performance benchmarks (requires full stack + running app)
+make docker-up && make migrate-up
+make perf
+
+# DB-layer micro-benchmarks (requires DATABASE_URL, no docker stack needed)
 make bench
 ```
+
+> The BR-04 organic worker E2E test requires `E2E_DB_URL` pointing at the host-accessible
+> Postgres URL (e.g. `postgres://postgres:postgres@localhost:5432/waste_collection?sslmode=disable`).
+> Without it the worker test skips automatically.
 
 ---
 
@@ -212,8 +220,8 @@ SQL is explicit, reviewable, and optimised per query. The `sqlx` library adds st
 ### Sentinel errors for domain outcomes
 Five sentinel errors (`ErrNotFound`, `ErrConflict`, `ErrBusinessRule`, `ErrValidation`, `ErrInternalFailure`) allow the handler layer to map outcomes to HTTP status codes via `errors.Is`, without coupling service logic to HTTP.
 
-### String type for monetary amounts
-Amounts are stored as PostgreSQL `NUMERIC(12,2)` and scanned as `string` to avoid floating-point representation issues without adding a decimal library dependency.
+### `shopspring/decimal` for monetary amounts
+Amounts are stored as PostgreSQL `NUMERIC(12,2)` and scanned directly into `decimal.Decimal` from `github.com/shopspring/decimal`. The type implements `database/sql.Scanner` natively, eliminates floating-point representation issues, and marshals to JSON as a quoted string (`"50000.00"`) matching the wire format.
 
 ### Per-IP token bucket rate limiting
 `golang.org/x/time/rate` provides a per-IP `rate.Limiter` stored in a `sync.Map`. This enforces the pickup-creation rate limit without an external dependency like Redis.

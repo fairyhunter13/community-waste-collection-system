@@ -5,9 +5,8 @@ package mocks
 import (
 	context "context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	domain "github.com/fairyhunter13/community-waste-collection-system/internal/domain"
+	mock "github.com/stretchr/testify/mock"
 
 	sqlx "github.com/jmoiron/sqlx"
 
@@ -72,6 +71,63 @@ func (_c *PickupRepository_BulkCancel_Call) Return(_a0 error) *PickupRepository_
 }
 
 func (_c *PickupRepository_BulkCancel_Call) RunAndReturn(run func(context.Context, []uuid.UUID) error) *PickupRepository_BulkCancel_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CancelIfCancellable provides a mock function with given fields: ctx, id
+func (_m *PickupRepository) CancelIfCancellable(ctx context.Context, id uuid.UUID) (bool, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CancelIfCancellable")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// PickupRepository_CancelIfCancellable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CancelIfCancellable'
+type PickupRepository_CancelIfCancellable_Call struct {
+	*mock.Call
+}
+
+// CancelIfCancellable is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *PickupRepository_Expecter) CancelIfCancellable(ctx interface{}, id interface{}) *PickupRepository_CancelIfCancellable_Call {
+	return &PickupRepository_CancelIfCancellable_Call{Call: _e.mock.On("CancelIfCancellable", ctx, id)}
+}
+
+func (_c *PickupRepository_CancelIfCancellable_Call) Run(run func(ctx context.Context, id uuid.UUID)) *PickupRepository_CancelIfCancellable_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *PickupRepository_CancelIfCancellable_Call) Return(_a0 bool, _a1 error) *PickupRepository_CancelIfCancellable_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *PickupRepository_CancelIfCancellable_Call) RunAndReturn(run func(context.Context, uuid.UUID) (bool, error)) *PickupRepository_CancelIfCancellable_Call {
 	_c.Call.Return(run)
 	return _c
 }

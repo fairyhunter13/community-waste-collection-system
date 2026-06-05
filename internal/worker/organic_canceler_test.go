@@ -2,6 +2,7 @@ package worker_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -78,6 +79,21 @@ func (s *OrganicCancelerSuite) TestRun_FindError_SkipsBulkCancel() {
 	w.Start(ctx)
 
 	s.repo.AssertNotCalled(s.T(), "BulkCancel")
+}
+
+func (s *OrganicCancelerSuite) TestRun_BulkCancelError_LogsAndReturns() {
+	id := uuid.New()
+	s.repo.On("FindExpiredOrganic", mock.Anything, mock.AnythingOfType("time.Time")).
+		Return([]*domain.WastePickup{{ID: id}}, nil)
+	s.repo.On("BulkCancel", mock.Anything, []uuid.UUID{id}).Return(errors.New("db error"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+
+	w := worker.NewOrganicCanceler(s.repo, s.logger, s.cfg)
+	w.Start(ctx) // must not panic
+
+	s.repo.AssertCalled(s.T(), "BulkCancel", mock.Anything, []uuid.UUID{id})
 }
 
 var errFindFailed = &testError{"find failed"}

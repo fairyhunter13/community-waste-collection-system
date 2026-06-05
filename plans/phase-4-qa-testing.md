@@ -200,6 +200,14 @@ func (s *PickupServiceUnitSuite) TestCreate() {
 | Cancel rejected: status is canceled | — | `domain.ErrConflict` |
 | Payment confirm: missing file | BR-06 | `domain.ErrValidation` |
 | Payment confirm: already paid | — | `domain.ErrConflict` |
+| Schedule: pickup_date in the past | — | `domain.ErrValidation` |
+| Cancel: pickup completed → CancelIfCancellable returns false → FindByID confirms | — | `domain.ErrConflict` |
+| Cancel: pickup already canceled → CancelIfCancellable returns false | — | `domain.ErrConflict` |
+| Cancel success from pending → CancelIfCancellable returns true | — | nil, status=canceled |
+| Cancel success from scheduled → CancelIfCancellable returns true | — | nil, status=canceled |
+| Create pickup: repo returns ErrNotFound (FK path) → service propagates | — | `domain.ErrNotFound` |
+| Create payment: repo returns ErrNotFound (FK path) → service propagates | — | `domain.ErrNotFound` |
+| Create payment: repo returns ErrConflict (unique path) → service propagates | — | `domain.ErrConflict` |
 
 ### Handler Layer — What to Test
 
@@ -231,6 +239,11 @@ func (s *PickupHandlerUnitSuite) TestCreatePickup_RateLimitedResponse() {
 | Service returns ErrConflict | 409 |
 | Service returns ErrBusinessRule | 422 |
 | Service returns ErrInternalFailure | 500 |
+| `?status=garbage` for pickups or payments | 400 |
+| `?date_from=not-a-date` or `?date_to=not-a-date` | 400 |
+| `?date_from=...&date_to=...` with valid RFC3339 | 200 (date range filter active) |
+| `amount:"abc"` or `amount:"-100"` in CreatePayment | 400 |
+| `per_page=9999` → response meta.per_page capped at 100 | 200 |
 
 ---
 
@@ -325,10 +338,21 @@ func (s *RepositorySuite) TestHouseholdRepository_FindByID_NotFound() {
 - `List` filtered by `status` and `household_id` → correct results
 - `Schedule` → status = `scheduled`, pickup_date set
 
+**Pickup repository:**
+- `CancelIfCancellable` on pending pickup → returns true, status becomes canceled
+- `CancelIfCancellable` on completed pickup → returns false, status unchanged
+- `CancelIfCancellable` on non-existent UUID → returns false, no error
+- `List` with combined status + household_id filter → returns intersection
+- `Create` with non-existent household_id → ErrNotFound (FK violation mapped, not 500)
+
 **Payment repository:**
 - `CreateWithTx` within transaction → payment created atomically with pickup status change
-- `Confirm` → status = `paid`, proof_file_url set, payment_date set
-- `List` filtered by status, household, date range → correct results
+- `Confirm` (conditional WHERE status='pending') → status = `paid`, proof_file_url set, payment_date set
+- `Confirm` on already-paid payment → 0 rows affected, returns ErrConflict
+- `List` filtered by status, household_id, and date range → correct results
+- `Create` with non-existent household_id → ErrNotFound (FK violation mapped)
+- `Create` with non-existent waste_id → ErrNotFound (FK violation mapped)
+- `Create` twice with same waste_id → ErrConflict (unique violation mapped)
 - `WasteSummary` → correct aggregated counts per type+status
 - `PaymentSummary` → correct counts + revenue total
 - `HouseholdHistory` → returns household + pickups + payments
@@ -371,56 +395,72 @@ func (s *E2ESuite) TearDownTest() {
 
 ### E2E Scenarios
 
-#### Full Pickup Lifecycle
-```
-POST /api/households → 201 (save household_id)
-POST /api/pickups (household_id, type=plastic) → 201 (save pickup_id)
-PUT /api/pickups/{pickup_id}/schedule → 200 (pickup_date required)
-PUT /api/pickups/{pickup_id}/complete → 200
-GET /api/payments → 200 (payment auto-created; save payment_id)
-PUT /api/payments/{payment_id}/confirm (multipart file) → 200 (proof_file_url populated)
-```
+#### Household
+| Scenario | Expected |
+|---|---|
+| CRUD lifecycle (create → get → list → delete → 404) | All steps correct |
+| Create with missing fields | 400 |
+| Pagination (25 items, per_page=20) | meta.total≥25, total_pages≥2, page 2 has results |
 
-#### BR-01 E2E
-```
-POST /api/households → 201
-POST /api/pickups (organic) → 201
-PUT /api/pickups/:id/complete → 200 (payment pending)
-POST /api/pickups (plastic, same household) → 409
-```
+#### Pickup — Core flows
+| Scenario | Expected |
+|---|---|
+| Full lifecycle: create → schedule → complete | status transitions correct |
+| List all pickups | 200 with data |
+| List filtered by `?status=pending` | only pending pickups returned |
+| List filtered by `?household_id=X` | only that household's pickups |
+| Create pickup → BR-01 blocked by pending payment | 409 |
+| Rate limit: 15 rapid creates | at least one 429 observed |
 
-#### BR-03 E2E
-```
-POST /api/pickups (electronic, safety_check=false) → 201
-PUT /api/pickups/:id/schedule → 422
-```
+#### Pickup — Business rules and edge cases
+| Scenario | Expected |
+|---|---|
+| Schedule electronic pickup without safety_check (BR-03) | 422 |
+| Schedule electronic pickup with safety_check=true | 200 (BR-03 happy path) |
+| Schedule already-scheduled pickup (BR-02) | 409 |
+| Complete already-completed pickup | 409 |
+| Cancel a pending pickup | 200 with status=canceled |
+| Cancel a completed pickup | 409 |
+| Create pickup with non-existent household_id | 400 (VALIDATION_ERROR, DB validator at handler layer) |
 
-#### Rate Limit E2E
-```
-POST /api/pickups × 15 rapid requests → some 429 responses observed
-```
+#### Pickup — Worker (BR-04)
+| Scenario | Expected |
+|---|---|
+| Organic pickup backdated 4 days, wait for worker tick | status becomes canceled |
 
-#### Organic Worker E2E
-```
-INSERT pickup with created_at = NOW() - INTERVAL '4 days' (direct DB)
-Wait for worker tick (or reduce interval in test env to 1s)
-GET /api/pickups/:id → status = canceled
-```
+#### Payment — Core flows
+| Scenario | Expected |
+|---|---|
+| Direct POST /api/payments | 201 with status=pending |
+| List all payments | 200 with meta |
+| List filtered by `?status=pending` | only pending |
+| List filtered by `?household_id=X` | only that household's payments |
+| List filtered by `?date_from=...&date_to=...` | only confirmed payments in date range |
+| Confirm payment with proof file | 200, proof_file_url non-empty in response |
+| Confirm non-existent payment ID | 404 |
 
-#### Reporting E2E
-```
-Create mixed household/pickup/payment data
-GET /api/reports/waste-summary → verify counts match created data
-GET /api/reports/payment-summary → verify revenue = expected
-GET /api/reports/households/:id/history → verify all records present
-```
+#### Payment — Amount verification (BR-05)
+| Scenario | Expected |
+|---|---|
+| Complete organic pickup → auto-payment | amount == "50000.00" |
+| Complete electronic pickup → auto-payment | amount == "100000.00" |
+| Complete plastic pickup → auto-payment | amount == "50000.00" |
+| Complete paper pickup → auto-payment | amount == "50000.00" |
 
-#### Pagination E2E
-```
-Create 25 households
-GET /api/households?per_page=20 → 20 results, total=25, total_pages=2
-GET /api/households?page=2&per_page=20 → 5 results
-```
+#### Payment — DB-level validation
+| Scenario | Expected |
+|---|---|
+| POST /api/payments with non-existent household_id | 400 (VALIDATION_ERROR, DB validator) |
+| POST /api/payments with non-existent waste_id | 400 (VALIDATION_ERROR, DB validator) |
+| POST /api/payments twice for same pickup (waste_id UNIQUE) | 409 (not 500) |
+
+#### Reports
+| Scenario | Expected |
+|---|---|
+| waste-summary: create organic + plastic pickups | by_type aggregation matches created data |
+| payment-summary: create + confirm payment | revenue and paid count correct |
+| households/:id/history: household with pickups and payments | pickups[] and payments[] both present with correct IDs |
+| households/:id/history with unknown ID | 404 |
 
 ---
 
@@ -518,7 +558,7 @@ All tests run with `-race` flag to catch data races in concurrent code (goroutin
 | `internal/repository` | ≥ 70% | Integration tests |
 | `internal/worker` | ≥ 70% | Unit tests (mocked repo) |
 | `internal/storage` | ≥ 60% | Integration test (real MinIO) |
-| Overall project | ≥ 70% | All test types combined |
+| Overall project | ≥ 80% | All test types combined |
 
 **Coverage commands:**
 ```bash
@@ -531,7 +571,7 @@ make coverage                              # open HTML report
 
 ## 10. Test Quality Rules
 
-- **No `time.Sleep` in tests** — use testcontainers wait strategies or `testing/synctest` (Go 1.25)
+- **No `time.Sleep` in tests** — use testcontainers wait strategies or `testing/synctest` (Go 1.25). Exception: E2E worker tests that observe async background behaviour (e.g., the organic auto-cancel worker) may use `time.Sleep` with a safety margin when no deterministic wait mechanism exists.
 - **No shared mutable state** between tests — each test is fully isolated via `TearDownTest` truncation
 - **No hardcoded IDs** — use `uuid.New()` per test; never reuse IDs across tests
 - **Descriptive test names** — `TestPickupService_Create_BlockedByPendingPayment` not `Test1`

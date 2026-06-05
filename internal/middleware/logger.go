@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // RequestLogger returns an Echo middleware that logs each request with slog.
@@ -24,6 +25,9 @@ func RequestLogger(logger *slog.Logger) echo.MiddlewareFunc {
 				slog.Int("status", res.Status),
 				slog.Duration("duration", duration),
 				slog.String("ip", c.RealIP()),
+			}
+			if span := trace.SpanFromContext(req.Context()); span.SpanContext().IsValid() {
+				attrs = append(attrs, slog.String("trace_id", span.SpanContext().TraceID().String()))
 			}
 
 			if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // WasteTypeSummary holds aggregated pickup counts for a single waste type.
@@ -15,15 +16,15 @@ type WasteTypeSummary struct {
 
 // PaymentStatusSummary holds aggregated payment counts and revenue for a single status.
 type PaymentStatusSummary struct {
-	Status  PaymentStatus `json:"status"  db:"status"`
-	Count   int           `json:"count"   db:"count"`
-	Revenue string        `json:"revenue" db:"revenue"`
+	Status  PaymentStatus   `json:"status"  db:"status"`
+	Count   int             `json:"count"   db:"count"`
+	Revenue decimal.Decimal `json:"revenue" db:"revenue"`
 }
 
 // PaymentSummaryResult holds the full payment summary report.
 type PaymentSummaryResult struct {
 	ByStatus     []PaymentStatusSummary `json:"by_status"`
-	TotalRevenue string                 `json:"total_revenue"`
+	TotalRevenue decimal.Decimal        `json:"total_revenue"`
 }
 
 // HouseholdHistoryResult holds a household's full pickup and payment history.

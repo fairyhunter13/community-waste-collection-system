@@ -28,7 +28,7 @@ func (r *householdRepo) Create(ctx context.Context, h *domain.Household) error {
 	if err != nil {
 		return fmt.Errorf("create household: %w", domain.ErrInternalFailure)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		if err := rows.StructScan(h); err != nil {
 			return fmt.Errorf("scan household: %w", domain.ErrInternalFailure)

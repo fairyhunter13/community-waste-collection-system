@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -66,6 +67,10 @@ func (s *pickupService) Schedule(ctx context.Context, id uuid.UUID, req domain.S
 		return nil, fmt.Errorf("electronic pickup requires safety_check to be true before scheduling: %w", domain.ErrBusinessRule)
 	}
 
+	if req.PickupDate.Before(time.Now()) {
+		return nil, fmt.Errorf("pickup_date must be in the future: %w", domain.ErrValidation)
+	}
+
 	if err := s.pickupRepo.Schedule(ctx, id, req.PickupDate); err != nil {
 		return nil, err
 	}
@@ -117,26 +122,24 @@ func (s *pickupService) Complete(ctx context.Context, id uuid.UUID) (*domain.Was
 	return pickup, nil
 }
 
-// Cancel transitions a pickup to canceled status if it is in a cancellable state.
+// Cancel transitions a pickup to canceled status atomically using a conditional UPDATE.
+// This eliminates the read-check-write race condition of the previous FindByID+UpdateStatus pattern.
 func (s *pickupService) Cancel(ctx context.Context, id uuid.UUID) (*domain.WastePickup, error) {
-	pickup, err := s.pickupRepo.FindByID(ctx, id)
+	ok, err := s.pickupRepo.CancelIfCancellable(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-
-	switch pickup.Status {
-	case domain.PickupStatusCompleted:
-		return nil, fmt.Errorf("pickup status is completed, cannot cancel: %w", domain.ErrConflict)
-	case domain.PickupStatusCanceled:
-		return nil, fmt.Errorf("pickup is already canceled: %w", domain.ErrConflict)
-	case domain.PickupStatusPending, domain.PickupStatusScheduled:
-		// cancellable statuses — proceed
+	if !ok {
+		pickup, err := s.pickupRepo.FindByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		switch pickup.Status {
+		case domain.PickupStatusCompleted:
+			return nil, fmt.Errorf("pickup status is completed, cannot cancel: %w", domain.ErrConflict)
+		default:
+			return nil, fmt.Errorf("pickup is already canceled: %w", domain.ErrConflict)
+		}
 	}
-
-	if err := s.pickupRepo.UpdateStatus(ctx, id, domain.PickupStatusCanceled); err != nil {
-		return nil, err
-	}
-
-	pickup.Status = domain.PickupStatusCanceled
-	return pickup, nil
+	return s.pickupRepo.FindByID(ctx, id)
 }

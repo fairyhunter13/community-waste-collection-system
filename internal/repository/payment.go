@@ -10,9 +10,27 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
+	"github.com/shopspring/decimal"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
 )
+
+// mapPaymentCreateErr maps PostgreSQL constraint violations to domain errors.
+func mapPaymentCreateErr(err error) error {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		switch pqErr.Code {
+		case "23503": // foreign_key_violation
+			return fmt.Errorf("referenced household or waste pickup not found: %w", domain.ErrNotFound)
+		case "23505": // unique_violation
+			return fmt.Errorf("payment for this pickup already exists: %w", domain.ErrConflict)
+		case "23514": // check_violation
+			return fmt.Errorf("amount must be positive: %w", domain.ErrValidation)
+		}
+	}
+	return fmt.Errorf("create payment: %w", domain.ErrInternalFailure)
+}
 
 type paymentRepo struct {
 	db *sqlx.DB
@@ -28,9 +46,9 @@ func (r *paymentRepo) Create(ctx context.Context, p *domain.Payment) error {
 	          VALUES (:household_id, :waste_id, :amount, :status) RETURNING *`
 	rows, err := r.db.NamedQueryContext(ctx, query, p)
 	if err != nil {
-		return fmt.Errorf("create payment: %w", domain.ErrInternalFailure)
+		return mapPaymentCreateErr(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		if err := rows.StructScan(p); err != nil {
 			return fmt.Errorf("scan payment: %w", domain.ErrInternalFailure)
@@ -47,9 +65,9 @@ func (r *paymentRepo) CreateWithTx(ctx context.Context, tx *sqlx.Tx, p *domain.P
 	          VALUES (:household_id, :waste_id, :amount, :status) RETURNING *`
 	rows, err := tx.NamedQuery(query, p)
 	if err != nil {
-		return fmt.Errorf("create payment (tx): %w", domain.ErrInternalFailure)
+		return mapPaymentCreateErr(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		if err := rows.StructScan(p); err != nil {
 			return fmt.Errorf("scan payment (tx): %w", domain.ErrInternalFailure)
@@ -142,12 +160,17 @@ func (r *paymentRepo) List(ctx context.Context, filter domain.PaymentFilter) ([]
 }
 
 func (r *paymentRepo) Confirm(ctx context.Context, id uuid.UUID, proofURL string, paidAt time.Time) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE payments SET status = 'paid', proof_file_url = $2, payment_date = $3, updated_at = NOW() WHERE id = $1`,
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE payments SET status='paid', proof_file_url=$2, payment_date=$3, updated_at=NOW()
+		 WHERE id=$1 AND status='pending'`,
 		id, proofURL, paidAt,
 	)
 	if err != nil {
 		return fmt.Errorf("confirm payment: %w", domain.ErrInternalFailure)
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("payment already confirmed or not found: %w", domain.ErrConflict)
 	}
 	return nil
 }
@@ -194,12 +217,12 @@ func (r *paymentRepo) PaymentSummary(ctx context.Context) (*domain.PaymentSummar
 	type summaryRow struct {
 		Status  domain.PaymentStatus `db:"status"`
 		Count   int                  `db:"count"`
-		Revenue string               `db:"revenue"`
+		Revenue decimal.Decimal      `db:"revenue"`
 	}
 	var rows []summaryRow
 	err := r.db.SelectContext(ctx, &rows, `
 		SELECT status, COUNT(*) AS count,
-		       COALESCE(SUM(amount), 0)::text AS revenue
+		       COALESCE(SUM(amount), 0) AS revenue
 		FROM payments
 		GROUP BY status
 	`)
@@ -208,7 +231,7 @@ func (r *paymentRepo) PaymentSummary(ctx context.Context) (*domain.PaymentSummar
 	}
 
 	statuses := make([]domain.PaymentStatusSummary, len(rows))
-	totalRevenue := "0"
+	totalRevenue := decimal.Zero
 	for i, row := range rows {
 		statuses[i] = domain.PaymentStatusSummary{
 			Status:  row.Status,

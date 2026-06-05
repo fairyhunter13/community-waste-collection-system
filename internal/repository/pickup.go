@@ -15,6 +15,15 @@ import (
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
 )
 
+// mapPickupCreateErr maps PostgreSQL constraint violations to domain errors.
+func mapPickupCreateErr(err error) error {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == "23503" {
+		return fmt.Errorf("household not found: %w", domain.ErrNotFound)
+	}
+	return fmt.Errorf("create pickup: %w", domain.ErrInternalFailure)
+}
+
 type pickupRepo struct {
 	db *sqlx.DB
 }
@@ -29,9 +38,9 @@ func (r *pickupRepo) Create(ctx context.Context, p *domain.WastePickup) error {
 	          VALUES (:household_id, :type, :status, :safety_check) RETURNING *`
 	rows, err := r.db.NamedQueryContext(ctx, query, p)
 	if err != nil {
-		return fmt.Errorf("create pickup: %w", domain.ErrInternalFailure)
+		return mapPickupCreateErr(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		if err := rows.StructScan(p); err != nil {
 			return fmt.Errorf("scan pickup: %w", domain.ErrInternalFailure)
@@ -172,6 +181,18 @@ func (r *pickupRepo) BulkCancel(ctx context.Context, ids []uuid.UUID) error {
 		return fmt.Errorf("bulk cancel pickups: %w", domain.ErrInternalFailure)
 	}
 	return nil
+}
+
+func (r *pickupRepo) CancelIfCancellable(ctx context.Context, id uuid.UUID) (bool, error) {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE waste_pickups SET status='canceled', updated_at=NOW()
+		 WHERE id=$1 AND status IN ('pending','scheduled')`, id,
+	)
+	if err != nil {
+		return false, fmt.Errorf("cancel pickup: %w", domain.ErrInternalFailure)
+	}
+	n, _ := result.RowsAffected()
+	return n > 0, nil
 }
 
 func (r *pickupRepo) HasPendingPaymentForHousehold(ctx context.Context, householdID uuid.UUID) (bool, error) {

@@ -98,7 +98,8 @@ make run
 make test              # Unit tests (no external dependencies)
 make test-integration  # Integration tests (requires PostgreSQL via testcontainers)
 make test-e2e          # E2E tests (requires full docker-compose stack)
-make bench             # Integration benchmarks
+make perf              # HTTP performance benchmarks (requires full docker-compose stack + running app)
+make bench             # DB-layer micro-benchmarks (requires DATABASE_URL)
 make coverage          # Open HTML coverage report
 ```
 
@@ -389,13 +390,27 @@ Work through this checklist before submission. Every item must be checked.
 - [ ] `PUT /api/pickups/:id/complete` → completes, auto-creates payment (BR-05)
 - [ ] `PUT /api/pickups/:id/cancel` → cancels
 - [ ] `POST /api/payments` → creates payment
-- [ ] `GET /api/payments` → filtered list with date range
+- [ ] `GET /api/payments` → filtered list with date range (`date_from`/`date_to` RFC3339 params parsed)
 - [ ] `PUT /api/payments/:id/confirm` → file upload, proof_file_url saved (BR-06)
 - [ ] `GET /api/reports/waste-summary` → correct aggregated counts
 - [ ] `GET /api/reports/payment-summary` → correct counts + revenue
 - [ ] `GET /api/reports/households/:id/history` → full history
-- [ ] Organic auto-cancel worker starts and runs on configured interval (BR-04)
+- [ ] Organic auto-cancel worker starts and runs on configured interval (BR-04) — verified by `TestOrganicWorker_BR04_AutoCancel` in `test/e2e/worker_test.go`
 - [ ] SIGINT → all goroutines stop within 10 seconds
+- [ ] `GET /api/pickups?status=garbage` → 400 (enum whitelist enforced)
+- [ ] `GET /api/payments?status=garbage` → 400 (enum whitelist enforced)
+- [ ] `GET /api/payments?date_from=invalid` → 400 (date format validated)
+- [ ] `POST /api/payments` with `amount:"abc"` → 400 (positive decimal validated)
+- [ ] `PUT /api/pickups/:id/schedule` with past date → 400 (future date validated)
+- [ ] `GET /api/pickups?per_page=9999` → response meta shows per_page capped at 100
+- [ ] `POST /api/pickups` with non-existent household_id → 400 (VALIDATION_ERROR)
+- [ ] `POST /api/payments` with non-existent household_id → 400 (VALIDATION_ERROR)
+- [ ] `POST /api/payments` with non-existent waste_id → 400 (VALIDATION_ERROR)
+- [ ] `POST /api/payments` twice for same pickup → 409 (unique violation handled)
+- [ ] Complete organic pickup → payment.amount == "50000.00" (BR-05)
+- [ ] Complete electronic pickup → payment.amount == "100000.00" (BR-05)
+- [ ] Confirm payment → proof_file_url non-empty in response (BR-06)
+- [ ] `GET /api/payments?date_from=...&date_to=...` → date range filter returns confirmed payments
 
 ### Code Quality
 - [ ] `go vet ./...` passes
@@ -408,8 +423,8 @@ Work through this checklist before submission. Every item must be checked.
 - [ ] `make test` (unit) passes with `-race` flag
 - [ ] `make test-integration` passes (real PostgreSQL via testcontainers)
 - [ ] `make test-e2e` passes (full docker-compose stack)
-- [ ] `make bench` completes without error
-- [ ] Overall coverage ≥ 70%: `go tool cover -func=coverage.out`
+- [ ] `make perf` completes without error (requires full docker-compose stack)
+- [ ] Overall coverage ≥ 80%: `go tool cover -func=coverage.out`
 
 ### Infrastructure
 - [ ] `make docker-up` → all services healthy on first run

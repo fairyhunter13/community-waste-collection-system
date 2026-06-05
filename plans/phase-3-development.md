@@ -41,6 +41,7 @@ require (
     golang.org/x/time                  v0.x.x    // rate.Limiter for rate limiting
     github.com/google/uuid             v1.6.x
     github.com/go-playground/validator/v10 v10.x.x
+    github.com/shopspring/decimal      v1.4.0    // type-safe monetary arithmetic; scans NUMERIC(12,2)
 
     // ── Observability ─────────────────────────────────────────────────────
     go.opentelemetry.io/otel                            v1.x.x
@@ -299,7 +300,7 @@ err = tx.Commit()
 
 **Enum scanning:** PostgreSQL ENUMs scan directly into Go string types with `lib/pq`.
 
-**NUMERIC(12,2) scanning:** Scan into `string` then parse, OR use `shopspring/decimal` if added as dependency, OR store as integer cents (`int64`) in Go.
+**NUMERIC(12,2) scanning:** Scan directly into `decimal.Decimal` from `github.com/shopspring/decimal` — implements `database/sql.Scanner`, scans `NUMERIC(12,2)` natively without casts.
 
 **Verification:** Integration tests pass with testcontainers-go PostgreSQL.
 
@@ -469,18 +470,56 @@ type Handler struct {
     cfg          *config.Config
 }
 
-func New(hSvc domain.HouseholdService, pSvc domain.PickupService,
-    paymentSvc domain.PaymentService, rSvc domain.ReportService,
-    cfg *config.Config) *Handler {
+// New creates a Handler. db is passed to newValidator for DB-backed FK validators.
+// Pass nil for db in handler unit tests — DB validators skip checks when db is nil.
+func New(
+    hSvc domain.HouseholdService,
+    pSvc domain.PickupService,
+    paymentSvc domain.PaymentService,
+    rSvc domain.ReportService,
+    cfg *config.Config,
+    db *sqlx.DB,
+) *Handler {
     return &Handler{
         householdSvc: hSvc,
         pickupSvc:    pSvc,
         paymentSvc:   paymentSvc,
         reportSvc:    rSvc,
-        validate:     validator.New(),
+        validate:     newValidator(db),
         cfg:          cfg,
     }
 }
+
+// newValidator registers all custom struct validators including DB-backed FK checks.
+func newValidator(db *sqlx.DB) *validator.Validate {
+    v := validator.New()
+    _ = v.RegisterValidation("positive_decimal", func(fl validator.FieldLevel) bool {
+        d, ok := fl.Field().Interface().(decimal.Decimal)
+        return ok && d.IsPositive()
+    })
+    // Always register — struct tag parsing panics if a referenced validator is absent.
+    // nil-db passthrough keeps handler unit tests working without a real DB.
+    _ = v.RegisterValidationCtx("db_exists_household", func(ctx context.Context, fl validator.FieldLevel) bool {
+        if db == nil { return true }
+        id, ok := fl.Field().Interface().(uuid.UUID)
+        if !ok || id == uuid.Nil { return false }
+        var n int
+        _ = db.GetContext(ctx, &n, "SELECT COUNT(*) FROM households WHERE id=$1", id)
+        return n > 0
+    })
+    _ = v.RegisterValidationCtx("db_exists_pickup", func(ctx context.Context, fl validator.FieldLevel) bool {
+        if db == nil { return true }
+        id, ok := fl.Field().Interface().(uuid.UUID)
+        if !ok || id == uuid.Nil { return false }
+        var n int
+        _ = db.GetContext(ctx, &n, "SELECT COUNT(*) FROM waste_pickups WHERE id=$1", id)
+        return n > 0
+    })
+    return v
+}
+```
+
+`bindAndValidate()` uses `v.StructCtx(c.Request().Context(), dst)` (not `v.Struct()`) so DB validators receive the request context for cancellation and timeout propagation.
 
 func (h *Handler) RegisterRoutes(e *echo.Echo) {
     api := e.Group("/api")
@@ -741,7 +780,7 @@ func main() {
     e.Use(middleware.Recover(logger))
     e.Use(echomiddleware.CrossOriginProtection())  // Go 1.25
 
-    h := handler.New(householdSvc, pickupSvc, paymentSvc, reportSvc, cfg)
+    h := handler.New(householdSvc, pickupSvc, paymentSvc, reportSvc, cfg, db)
     h.RegisterRoutes(e)
 
     // ── Debug server (pprof) ───────────────────────────────────────────────
@@ -808,7 +847,7 @@ func main() {
 | `interface{}` in request/response | Loses compile-time safety | Use typed structs |
 | `log.Fatal` in library code | Prevents graceful shutdown | Return error to caller |
 | Goroutine without exit condition | Goroutine leak | Always use context or done channel |
-| `float64` for money | Precision errors (`0.1+0.2 != 0.3`) | `NUMERIC(12,2)` in DB; integer cents in Go |
+| `float64` for money | Precision errors (`0.1+0.2 != 0.3`) | `NUMERIC(12,2)` in DB; `decimal.Decimal` from shopspring/decimal in Go |
 | String concatenation in SQL | SQL injection | Parameterized queries (`$1`, NamedExec) |
 | Global mutable state | Race conditions | Inject all state via constructor |
 | Returning `200 OK` for errors | Breaks API contract | Always use correct HTTP status codes |

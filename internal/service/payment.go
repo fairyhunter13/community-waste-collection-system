@@ -52,7 +52,7 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 		return nil, fmt.Errorf("payment status is %s, must be pending: %w", payment.Status, domain.ErrConflict)
 	}
 
-	key := fmt.Sprintf("%s/proof_%s", id, time.Now().UTC().Format("20060102150405"))
+	key := fmt.Sprintf("%s/proof_%s", id, uuid.New().String())
 	proofURL, err := s.storage.Upload(ctx, key, file, size, contentType)
 	if err != nil {
 		return nil, err

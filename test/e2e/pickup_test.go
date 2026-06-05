@@ -149,6 +149,179 @@ func (s *E2ESuite) TestPickup_Cancel() {
 	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
 }
 
+func (s *E2ESuite) TestPickup_FilterByStatus() {
+	var hResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "Filter Status Owner",
+		"address":    "Jl. Filter No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	// Create two pickups; schedule one.
+	var p1Resp, p2Resp map[string]any
+	r1 := s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
+	s.Require().Equal(http.StatusCreated, r1.StatusCode)
+	s.decode(r1, &p1Resp)
+	p1ID := p1Resp["data"].(map[string]any)["id"].(string)
+
+	r2 := s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "plastic"})
+	s.Require().Equal(http.StatusCreated, r2.StatusCode)
+	s.decode(r2, &p2Resp)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", p1ID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+
+	resp = s.do(http.MethodGet, "/api/pickups?status=scheduled&household_id="+householdID, nil)
+	s.Equal(http.StatusOK, resp.StatusCode)
+	var listResp map[string]any
+	s.decode(resp, &listResp)
+	data := listResp["data"].([]any)
+	s.Require().Len(data, 1)
+	s.Equal("scheduled", data[0].(map[string]any)["status"])
+
+	_ = p2Resp
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+func (s *E2ESuite) TestPickup_FilterByHouseholdID() {
+	var h1Resp, h2Resp map[string]any
+	r1 := s.do(http.MethodPost, "/api/households", map[string]any{"owner_name": "Filter HH1", "address": "Jl. HH1"})
+	s.Require().Equal(http.StatusCreated, r1.StatusCode)
+	s.decode(r1, &h1Resp)
+	h1ID := h1Resp["data"].(map[string]any)["id"].(string)
+
+	r2 := s.do(http.MethodPost, "/api/households", map[string]any{"owner_name": "Filter HH2", "address": "Jl. HH2"})
+	s.Require().Equal(http.StatusCreated, r2.StatusCode)
+	s.decode(r2, &h2Resp)
+	h2ID := h2Resp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": h1ID, "type": "organic"})
+	s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": h2ID, "type": "plastic"})
+
+	resp := s.do(http.MethodGet, "/api/pickups?household_id="+h1ID, nil)
+	s.Equal(http.StatusOK, resp.StatusCode)
+	var listResp map[string]any
+	s.decode(resp, &listResp)
+	data := listResp["data"].([]any)
+	s.Require().NotEmpty(data)
+	for _, item := range data {
+		s.Equal(h1ID, item.(map[string]any)["household_id"])
+	}
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", h1ID), nil)
+	s.do(http.MethodDelete, pathf("/api/households/%s", h2ID), nil)
+}
+
+func (s *E2ESuite) TestPickup_BR02_ScheduleAlreadyScheduled() {
+	var hResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{"owner_name": "BR02 Owner", "address": "Jl. BR02"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	var pResp map[string]any
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+
+	// Second schedule attempt on a scheduled pickup should fail (BR-02: must be pending).
+	resp = s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(72 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.Equal(http.StatusConflict, resp.StatusCode)
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+func (s *E2ESuite) TestPickup_BR03_ElectronicWithSafetyCheck_CanSchedule() {
+	var hResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{"owner_name": "BR03 Happy Owner", "address": "Jl. BR03 Happy"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	var pResp map[string]any
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{
+		"household_id": householdID,
+		"type":         "electronic",
+		"safety_check": true,
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.Equal(http.StatusOK, resp.StatusCode)
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+func (s *E2ESuite) TestPickup_CompleteAlreadyCompleted() {
+	var hResp, pResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{"owner_name": "Double Complete", "address": "Jl. DC"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "paper"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	resp = s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+	s.Equal(http.StatusConflict, resp.StatusCode)
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+func (s *E2ESuite) TestPickup_CancelCompleted() {
+	var hResp, pResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{"owner_name": "Cancel Completed", "address": "Jl. CC"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "plastic"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	resp = s.do(http.MethodPut, pathf("/api/pickups/%s/cancel", pickupID), nil)
+	s.Equal(http.StatusConflict, resp.StatusCode)
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+func (s *E2ESuite) TestPickup_CreateNonExistentHousehold() {
+	// db_exists_household validator catches this at the handler layer → 400
+	resp := s.do(http.MethodPost, "/api/pickups", map[string]any{
+		"household_id": "00000000-0000-0000-0000-000000000001",
+		"type":         "organic",
+	})
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
+	resp.Body.Close()
+}
+
 func (s *E2ESuite) TestPickup_RateLimit() {
 	// Burst 11 rapid pickup-create requests to trigger rate limiting (burst=10)
 	var hResp map[string]any

@@ -60,14 +60,6 @@ jobs:
           name: coverage-unit
           path: coverage.out
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage.out
-          flags: unit
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-24.04
@@ -99,18 +91,59 @@ jobs:
           name: coverage-integration
           path: coverage-integration.out
 
+  coverage-gate:
+    name: Coverage Gate
+    runs-on: ubuntu-24.04
+    needs: [lint, test-unit, test-integration]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Download unit coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-unit
+          path: .
+
+      - name: Download integration coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-integration
+          path: .
+
+      - name: Enforce coverage threshold
+        run: |
+          echo "=== Unit test coverage ==="
+          go tool cover -func=coverage.out
+
+          TOTAL=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
+          echo "Total unit coverage: ${TOTAL}%"
+
+          MIN=70
+          if awk "BEGIN { exit !($TOTAL < $MIN) }"; then
+            echo "FAIL: coverage ${TOTAL}% is below minimum ${MIN}%"
+            exit 1
+          fi
+          echo "PASS: coverage threshold met (${TOTAL}% >= ${MIN}%)"
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: ./coverage-integration.out
-          flags: integration
+          files: ./coverage.out,./coverage-integration.out
+          flags: combined
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
   e2e:
     name: End-to-End Tests
     runs-on: ubuntu-24.04
-    needs: [test-unit, test-integration]
+    needs: [coverage-gate]
     timeout-minutes: 20
     env:
       DOCKER_HOST: "unix:///var/run/docker.sock"
@@ -131,6 +164,7 @@ jobs:
           sed -i 's|S3_ENDPOINT=.*|S3_ENDPOINT=http://minio:9000|' .env
           sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318|' .env
           echo "APP_ENV=ci" >> .env
+          echo "WORKER_CANCEL_INTERVAL=5s" >> .env
 
       - name: Start infrastructure services
         run: |
@@ -196,6 +230,7 @@ jobs:
             -timeout 180s -v
         env:
           BASE_URL: "http://localhost:8080"
+          E2E_DB_URL: "postgres://postgres:postgres@localhost:5432/waste_collection?sslmode=disable"
 
       - name: Collect logs on failure
         if: failure()
@@ -208,7 +243,7 @@ jobs:
   perf:
     name: Performance Tests
     runs-on: ubuntu-24.04
-    needs: [test-unit, test-integration]
+    needs: [coverage-gate]
     timeout-minutes: 30
     env:
       DOCKER_HOST: "unix:///var/run/docker.sock"
