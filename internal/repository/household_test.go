@@ -3,6 +3,7 @@
 package repository_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -90,6 +91,29 @@ func (s *HouseholdRepoSuite) TestDelete_Found() {
 
 	_, err := s.repo.FindByID(s.T().Context(), h.ID)
 	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
+
+// TestList_PerPageLargerThanTotal verifies that when per_page exceeds the total
+// number of records the response returns all records on page 1 with total_pages=1.
+func (s *HouseholdRepoSuite) TestList_PerPageLargerThanTotal() {
+	for i := range 3 {
+		h := &domain.Household{
+			OwnerName: fmt.Sprintf("Owner %d", i+1),
+			Address:   fmt.Sprintf("Address %d", i+1),
+		}
+		s.Require().NoError(s.repo.Create(s.T().Context(), h))
+	}
+
+	page1, total, err := s.repo.List(s.T().Context(), 1, 10)
+	s.Require().NoError(err)
+	s.Equal(3, total)
+	s.Len(page1, 3)
+
+	// Page 2 with per_page=10 must return nothing (no second page exists).
+	page2, total2, err := s.repo.List(s.T().Context(), 2, 10)
+	s.Require().NoError(err)
+	s.Equal(3, total2)
+	s.Empty(page2)
 }
 
 func (s *HouseholdRepoSuite) TestDelete_NotFound() {

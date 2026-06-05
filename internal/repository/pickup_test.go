@@ -243,6 +243,50 @@ func (s *PickupRepoSuite) TestCancelIfCancellable_NonExistentID() {
 	s.False(ok)
 }
 
+// TestFindExpiredOrganic_OnlyExpiredPendingOrganic verifies that FindExpiredOrganic
+// excludes scheduled organic pickups and aged non-organic pickups — only expired
+// pending organic pickups are returned.
+func (s *PickupRepoSuite) TestFindExpiredOrganic_OnlyExpiredPendingOrganic() {
+	h := s.newHousehold()
+
+	// Pending organic, aged past cutoff — must be returned.
+	expiredOrganic := s.insertAgedPickup(h.ID, 5)
+
+	// Scheduled organic, aged past cutoff — must NOT be returned (not pending).
+	scheduledOrganic := s.newPickup(h.ID, domain.WasteTypeOrganic)
+	s.Require().NoError(s.repo.Schedule(s.T().Context(), scheduledOrganic.ID, time.Now().Add(24*time.Hour)))
+	_, err := s.db.ExecContext(s.T().Context(),
+		`UPDATE waste_pickups SET created_at = NOW() - '5 days'::interval WHERE id = $1`,
+		scheduledOrganic.ID,
+	)
+	s.Require().NoError(err)
+
+	// Pending plastic, aged past cutoff — must NOT be returned (wrong type).
+	plasticPickup := &domain.WastePickup{
+		HouseholdID: h.ID,
+		Type:        domain.WasteTypePlastic,
+		Status:      domain.PickupStatusPending,
+	}
+	s.Require().NoError(s.repo.Create(s.T().Context(), plasticPickup))
+	_, err = s.db.ExecContext(s.T().Context(),
+		`UPDATE waste_pickups SET created_at = NOW() - '5 days'::interval WHERE id = $1`,
+		plasticPickup.ID,
+	)
+	s.Require().NoError(err)
+
+	cutoff := time.Now().Add(-3 * 24 * time.Hour)
+	results, err := s.repo.FindExpiredOrganic(s.T().Context(), cutoff)
+	s.Require().NoError(err)
+
+	ids := make(map[uuid.UUID]bool)
+	for _, r := range results {
+		ids[r.ID] = true
+	}
+	s.True(ids[expiredOrganic.ID], "pending expired organic must be returned")
+	s.False(ids[scheduledOrganic.ID], "scheduled organic must not be returned")
+	s.False(ids[plasticPickup.ID], "plastic pickup must not be returned")
+}
+
 func (s *PickupRepoSuite) TestCreate_NonExistentHousehold_ReturnsNotFound() {
 	p := &domain.WastePickup{
 		HouseholdID: uuid.New(), // does not exist

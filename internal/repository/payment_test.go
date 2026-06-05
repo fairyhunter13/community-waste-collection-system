@@ -290,6 +290,109 @@ func (s *PaymentRepoSuite) TestCreate_NonExistentWasteID_ReturnsNotFound() {
 	s.Require().ErrorIs(err, domain.ErrNotFound)
 }
 
+// TestList_AllThreeFilters_Combined verifies that status + household_id + date_range
+// filters are applied together, returning only records matching all three criteria.
+func (s *PaymentRepoSuite) TestList_AllThreeFilters_Combined() {
+	h1 := s.newHousehold()
+	h2 := s.newHousehold()
+	p1 := s.newPickup(h1.ID)
+	p2 := s.newPickup(h1.ID)
+	p3 := s.newPickup(h2.ID)
+
+	pay1 := s.newPayment(h1.ID, p1.ID) // h1, pending
+	_ = s.newPayment(h1.ID, p2.ID)     // h1, pending  (will stay pending)
+	_ = s.newPayment(h2.ID, p3.ID)     // h2, pending
+
+	// Confirm pay1 — status becomes "paid".
+	now := time.Now().UTC()
+	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay1.ID, "http://example.com/1.jpg", now))
+
+	yesterday := now.Add(-24 * time.Hour)
+	tomorrow := now.Add(24 * time.Hour)
+	status := domain.PaymentStatusPaid
+
+	payments, total, err := s.repo.List(s.T().Context(), domain.PaymentFilter{
+		HouseholdID: &h1.ID,
+		Status:      &status,
+		DateFrom:    &yesterday,
+		DateTo:      &tomorrow,
+		Page:        1,
+		PerPage:     20,
+	})
+	s.Require().NoError(err)
+	s.Equal(1, total)
+	s.Require().Len(payments, 1)
+	s.Equal(pay1.ID, payments[0].ID)
+	s.Equal(domain.PaymentStatusPaid, payments[0].Status)
+	s.Equal(h1.ID, payments[0].HouseholdID)
+}
+
+// TestPaymentSummary_AllStatuses verifies that the payment summary includes
+// pending, paid, and failed status entries, and that total_revenue contains
+// only the sum of paid payment amounts.
+func (s *PaymentRepoSuite) TestPaymentSummary_AllStatuses() {
+	h := s.newHousehold()
+	p1 := s.newPickup(h.ID)
+	p2 := s.newPickup(h.ID)
+	p3 := &domain.WastePickup{HouseholdID: h.ID, Type: domain.WasteTypeOrganic, Status: domain.PickupStatusPending}
+	s.Require().NoError(s.pickupRepo.Create(s.T().Context(), p3))
+
+	// pending payment
+	_ = s.newPayment(h.ID, p1.ID)
+
+	// paid payment
+	pay2 := s.newPayment(h.ID, p2.ID)
+	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay2.ID, "http://example.com/2.jpg", time.Now()))
+
+	// failed payment — insert directly with failed status
+	failedPay := &domain.Payment{
+		HouseholdID: h.ID,
+		WasteID:     p3.ID,
+		Amount:      decimal.RequireFromString("50000.00"),
+		Status:      domain.PaymentStatusFailed,
+	}
+	s.Require().NoError(s.repo.Create(s.T().Context(), failedPay))
+
+	result, err := s.repo.PaymentSummary(s.T().Context())
+	s.Require().NoError(err)
+	s.Require().NotNil(result)
+
+	byStatus := make(map[domain.PaymentStatus]domain.PaymentStatusSummary)
+	for _, r := range result.ByStatus {
+		byStatus[r.Status] = r
+	}
+
+	s.GreaterOrEqual(byStatus[domain.PaymentStatusPending].Count, 1)
+	s.GreaterOrEqual(byStatus[domain.PaymentStatusPaid].Count, 1)
+	s.GreaterOrEqual(byStatus[domain.PaymentStatusFailed].Count, 1)
+
+	// total_revenue must only sum paid amounts — at least 50 000.
+	s.True(result.TotalRevenue.GreaterThanOrEqual(decimal.RequireFromString("50000.00")),
+		"total_revenue must be at least 50000 (from the one paid payment)")
+}
+
+// TestList_DateRange_NoMatches_ReturnsEmpty verifies that a date range with no
+// confirmed payments returns an empty slice without error.
+func (s *PaymentRepoSuite) TestList_DateRange_NoMatches_ReturnsEmpty() {
+	h := s.newHousehold()
+	p := s.newPickup(h.ID)
+	_ = s.newPayment(h.ID, p.ID) // pending, no payment_date
+
+	// Date range well in the future — no confirmed payments exist in that window.
+	future1 := time.Now().Add(365 * 24 * time.Hour)
+	future2 := time.Now().Add(366 * 24 * time.Hour)
+
+	payments, total, err := s.repo.List(s.T().Context(), domain.PaymentFilter{
+		DateFrom: &future1,
+		DateTo:   &future2,
+		Page:     1,
+		PerPage:  20,
+	})
+	s.Require().NoError(err)
+	s.Equal(0, total)
+	s.Empty(payments)
+}
+
 func (s *PaymentRepoSuite) TestCreate_DuplicateWasteID_ReturnsConflict() {
 	h := s.newHousehold()
 	pickup := s.newPickup(h.ID)

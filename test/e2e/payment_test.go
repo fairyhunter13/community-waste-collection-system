@@ -420,6 +420,133 @@ func (s *E2ESuite) TestPayment_CreateNonExistentWasteID() {
 	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
 }
 
+// TestPickup_CompletePaper_PaymentAmount50000 verifies that completing a paper
+// pickup auto-creates a payment of 50 000 (same flat rate as organic/plastic).
+func (s *E2ESuite) TestPickup_CompletePaper_PaymentAmount50000() {
+	var hResp, pResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "Paper Amount Owner",
+		"address":    "Jl. Paper No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "paper"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	var listResp map[string]any
+	resp = s.do(http.MethodGet, fmt.Sprintf("/api/payments?household_id=%s", householdID), nil)
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.decode(resp, &listResp)
+	payments := listResp["data"].([]any)
+	s.Require().NotEmpty(payments)
+	s.Equal("50000.00", payments[0].(map[string]any)["amount"])
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+// TestPickup_CompletePlastic_PaymentAmount50000 verifies that completing a
+// plastic pickup auto-creates a payment of 50 000.
+func (s *E2ESuite) TestPickup_CompletePlastic_PaymentAmount50000() {
+	var hResp, pResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "Plastic Amount Owner",
+		"address":    "Jl. Plastic No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "plastic"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	var listResp map[string]any
+	resp = s.do(http.MethodGet, fmt.Sprintf("/api/payments?household_id=%s", householdID), nil)
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.decode(resp, &listResp)
+	payments := listResp["data"].([]any)
+	s.Require().NotEmpty(payments)
+	s.Equal("50000.00", payments[0].(map[string]any)["amount"])
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+// TestPayment_FilterByAllThree_StatusHouseholdDateRange verifies that combining
+// status + household_id + date_from/date_to filters returns only matching records.
+func (s *E2ESuite) TestPayment_FilterByAllThree_StatusHouseholdDateRange() {
+	var hResp, pResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "Triple Filter Owner",
+		"address":    "Jl. Triple Filter No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "paper"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	// Find the auto-created pending payment and confirm it.
+	var listResp map[string]any
+	resp = s.do(http.MethodGet, fmt.Sprintf("/api/payments?household_id=%s", householdID), nil)
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.decode(resp, &listResp)
+	payments := listResp["data"].([]any)
+	s.Require().NotEmpty(payments)
+	paymentID := payments[0].(map[string]any)["id"].(string)
+	s.confirmPayment(paymentID)
+
+	// Query with all three filters spanning now — should find the paid payment.
+	yesterday := time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339)
+	tomorrow := time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339)
+	url := fmt.Sprintf("/api/payments?status=paid&household_id=%s&date_from=%s&date_to=%s",
+		householdID, yesterday, tomorrow)
+	resp = s.do(http.MethodGet, url, nil)
+	s.Equal(http.StatusOK, resp.StatusCode)
+	var filtResp map[string]any
+	s.decode(resp, &filtResp)
+	data := filtResp["data"].([]any)
+	s.Require().NotEmpty(data, "expected at least one paid payment within date range")
+	for _, item := range data {
+		pm := item.(map[string]any)
+		s.Equal(householdID, pm["household_id"])
+		s.Equal("paid", pm["status"])
+	}
+
+	// Query with wrong status — should return empty.
+	url2 := fmt.Sprintf("/api/payments?status=pending&household_id=%s&date_from=%s&date_to=%s",
+		householdID, yesterday, tomorrow)
+	resp = s.do(http.MethodGet, url2, nil)
+	s.Equal(http.StatusOK, resp.StatusCode)
+	var filtResp2 map[string]any
+	s.decode(resp, &filtResp2)
+	s.Empty(filtResp2["data"].([]any), "no pending payments should exist after confirmation")
+
+	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
 func (s *E2ESuite) TestPayment_CreateDuplicateForSamePickup() {
 	var hResp, pResp map[string]any
 	resp := s.do(http.MethodPost, "/api/households", map[string]any{
