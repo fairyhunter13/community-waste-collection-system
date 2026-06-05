@@ -1,0 +1,76 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    # Correctness
+    - errcheck
+    - govet
+    - staticcheck
+    - gosec
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    - noctx
+    - contextcheck
+    - exhaustive
+
+    # Code quality
+    - revive
+    - unused
+    - ineffassign
+    - goconst
+    - godot
+    - misspell
+    - cyclop
+    - wrapcheck
+    - prealloc
+
+    # Style and clarity
+    - goimports
+    - whitespace
+    - godox
+
+linters-settings:
+  cyclop:
+    max-complexity: 15
+    skip-tests: true
+
+  gosec:
+    excludes:
+      - G115
+
+  revive:
+    rules:
+      - name: exported
+        arguments: ["checkPrivateReceivers"]
+      - name: var-naming
+      - name: package-comments
+      - name: unexported-return
+
+  wrapcheck:
+    ignorePackageGlobs:
+      - "github.com/fairyhunter13/community-waste-collection-system/internal/domain"
+
+  goimports:
+    local-prefixes: "github.com/fairyhunter13/community-waste-collection-system"
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  godox:
+    keywords:
+      - TODO
+      - FIXME
+      - HACK
+      - BUG
+
+issues:
+  max-same-issues: 0
+  exclude-rules:
+    - path: "_test\\.go"
+      linters: [gosec, wrapcheck, cyclop]
+    - path: "cmd/"
+      linters: [gochecknoinits]
