@@ -425,6 +425,8 @@ Work through this checklist before submission. Every item must be checked.
 - [x] `make test-e2e` passes (full docker-compose stack, verified in CI)
 - [x] `make perf` completes without error (requires full docker-compose stack)
 - [x] Overall coverage ≥ 80%: 81.7% over business logic (excludes generated mocks, integration-only repository, and observability bootstrap)
+- [x] 16 new E2E tests added (Day 4): edge cases for BR-01/02/03/04, non-existent IDs, cascade delete, pagination, summary filters
+- [x] 5 new integration tests added (Day 5): FindExpiredOrganic exclusion rules, combined payment filters, full status summary, empty date range, per_page overflow
 
 ### Infrastructure
 - [x] `make docker-up` → all services healthy on first run
@@ -434,14 +436,19 @@ Work through this checklist before submission. Every item must be checked.
 - [x] `.env.example` complete with all required variables
 
 ### Observability
-- [x] `curl :2112/metrics` → Prometheus metrics returned
+- [x] `curl :2112/metrics` → Prometheus metrics returned (11 instruments: counters, histograms, gauge)
 - [x] `curl :6060/debug/pprof/` → pprof index returned
-- [x] OTel traces appear in collector logs (docker logs)
+- [x] OTel traces appear in Jaeger UI (http://localhost:16686) — handler → service → repository spans
 - [x] Request logs include `trace_id` field
+- [x] Grafana dashboard auto-provisions on `make docker-up` (http://localhost:3000, admin/admin)
+- [x] All 6 dashboard rows populated: API traffic, business events, DB performance, worker, Go runtime, process
+- [x] Prometheus scrapes app metrics at 15s interval (http://localhost:9090)
+- [x] OTel collector exports traces to Jaeger via OTLP gRPC (jaeger:14250)
 
 ### Documentation
 - [x] README setup steps verified end-to-end on a clean environment
 - [x] Postman/Insomnia collection imports without errors
+- [x] All 29 collection requests have saved HTTP response examples (success + error cases)
 - [x] All collection requests succeed against running stack
 - [x] `plans/` directory committed with all 7 phase files
 - [x] No company names or test references in any committed file

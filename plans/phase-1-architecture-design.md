@@ -197,10 +197,11 @@ type PickupRepository interface {
     Create(ctx context.Context, p *WastePickup) error
     FindByID(ctx context.Context, id uuid.UUID) (*WastePickup, error)
     List(ctx context.Context, filter PickupFilter) ([]*WastePickup, int, error)
-    UpdateStatus(ctx context.Context, id uuid.UUID, status PickupStatus, tx ...*sqlx.Tx) error
+    UpdateStatus(ctx context.Context, id uuid.UUID, status PickupStatus) error
     Schedule(ctx context.Context, id uuid.UUID, date time.Time) error
     FindExpiredOrganic(ctx context.Context, before time.Time) ([]*WastePickup, error)
     BulkCancel(ctx context.Context, ids []uuid.UUID) error
+    CancelIfCancellable(ctx context.Context, id uuid.UUID) (bool, error) // atomic compare-and-swap cancel
     HasPendingPaymentForHousehold(ctx context.Context, householdID uuid.UUID) (bool, error)
 }
 

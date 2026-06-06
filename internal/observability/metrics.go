@@ -18,25 +18,28 @@ var OrganicCancelsTotal = promauto.NewCounter(prometheus.CounterOpts{
 	Help: "Total organic waste pickups auto-cancelled by the worker.",
 })
 
+// labelType is the Prometheus label name for waste type, shared across pickup metric vectors.
+const labelType = "type"
+
 // --- Business event metrics ---
 
 // PickupsCreatedTotal counts successful pickup creations by waste type.
 var PickupsCreatedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "waste_pickups_created_total",
 	Help: "Total pickup requests created, by waste type.",
-}, []string{"type"})
+}, []string{labelType})
 
 // PickupsCompletedTotal counts completed pickups by waste type.
 var PickupsCompletedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "waste_pickups_completed_total",
 	Help: "Total pickups marked completed, by waste type.",
-}, []string{"type"})
+}, []string{labelType})
 
 // PickupsCanceledTotal counts canceled pickups by waste type and cancellation reason.
 var PickupsCanceledTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "waste_pickups_canceled_total",
 	Help: "Total pickups canceled. reason: manual|auto.",
-}, []string{"type", "reason"})
+}, []string{labelType, "reason"})
 
 // PaymentsCreatedTotal counts payment records created (auto + manual).
 var PaymentsCreatedTotal = promauto.NewCounter(prometheus.CounterOpts{
