@@ -83,7 +83,7 @@ func (r *paymentRepo) Create(ctx context.Context, p *domain.Payment) error {
 }
 
 func (r *paymentRepo) CreateWithTx(ctx context.Context, tx *sqlx.Tx, p *domain.Payment) error {
-	ctx, span := observability.Tracer().Start(ctx, "repository.payment.CreateWithTx")
+	_, span := observability.Tracer().Start(ctx, "repository.payment.CreateWithTx")
 	span.SetAttributes(
 		attribute.String("db.system", "postgresql"),
 		attribute.String("db.operation", "INSERT"),
