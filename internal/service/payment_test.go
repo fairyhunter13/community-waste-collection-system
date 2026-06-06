@@ -133,6 +133,15 @@ func (s *PaymentServiceSuite) TestList_DelegatesToRepo() {
 	s.Len(got, 1)
 }
 
+func (s *PaymentServiceSuite) TestList_RepoError_Propagates() {
+	filter := domain.PaymentFilter{Page: 1, PerPage: 20}
+	s.repo.On("List", mock.Anything, filter).
+		Return(([]*domain.Payment)(nil), 0, domain.ErrInternalFailure)
+
+	_, _, err := s.svc.List(s.T().Context(), filter)
+	s.Require().ErrorIs(err, domain.ErrInternalFailure)
+}
+
 type ReportServiceSuite struct {
 	suite.Suite
 	repo *mocks.PaymentRepository
