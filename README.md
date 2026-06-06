@@ -558,6 +558,96 @@ deployments/          ← Docker Compose, Prometheus config, Grafana provisionin
 
 Dependencies only flow inward. Domain interfaces decouple layers.
 
+### Canonical Lifecycle (Mermaid)
+
+End-to-end flow exercising every layer plus BR-04 and BR-05:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant H as Echo Handler
+    participant S as Service
+    participant R as Repository
+    participant DB as PostgreSQL
+    participant W as Worker
+    participant M as MinIO/S3
+
+    C->>H: POST /api/households
+    H->>S: HouseholdService.Create
+    S->>R: INSERT household
+    R->>DB: SQL
+    DB-->>R: row
+    R-->>S: domain.Household
+    S-->>H: success
+    H-->>C: 201 + envelope
+
+    C->>H: POST /api/pickups (BR-01 advisory lock)
+    H->>S: PickupService.Create
+    S->>R: HasPendingPaymentForHousehold + INSERT pickup
+    R->>DB: pg_advisory_xact_lock + check + insert
+    DB-->>R: pickup
+    R-->>S: domain.WastePickup
+    S-->>H: success
+    H-->>C: 201
+
+    C->>H: PUT /api/pickups/:id/schedule (BR-02 conditional UPDATE)
+    H->>S: PickupService.Schedule
+    S->>R: UPDATE … WHERE id=? AND status='pending'
+    R->>DB: SQL
+    DB-->>R: 1 row affected
+    R-->>S: scheduled pickup
+    S-->>H: success
+    H-->>C: 200
+
+    C->>H: PUT /api/pickups/:id/complete (BR-05 atomicity)
+    H->>S: PickupService.Complete (tx)
+    S->>R: SELECT … FOR UPDATE + UPDATE pickup + INSERT payment
+    R->>DB: BEGIN; lock; update; insert; COMMIT
+    DB-->>R: completed + new pending payment
+    R-->>S: pickup + payment
+    S-->>H: success
+    H-->>C: 200
+
+    Note over W,DB: BR-04 every WORKER_CANCEL_INTERVAL
+    W->>DB: SELECT organic + pending + created_at < now-N days
+    DB-->>W: expired rows
+    W->>DB: UPDATE … SET status='canceled' WHERE status='pending'
+
+    C->>H: PUT /api/payments/:id/confirm (multipart proof)
+    H->>S: PaymentService.Confirm (MIME allowlist)
+    S->>M: PutObject
+    M-->>S: object URL
+    S->>R: UPDATE payment SET status='paid', proof_file_url=?
+    R->>DB: SQL
+    DB-->>R: paid
+    R-->>S: payment
+    S-->>H: success
+    H-->>C: 200
+```
+
+### Sample JSON Log Line
+
+Every request emits a structured slog line carrying both the OTel trace
+identifier and the request id, so reviewers can pivot from a log line to
+the trace in Jaeger or vice versa:
+
+```json
+{
+  "time": "2026-06-07T08:14:21.317Z",
+  "level": "INFO",
+  "msg": "request",
+  "method": "POST",
+  "path": "/api/pickups",
+  "status": 201,
+  "duration_ms": 38,
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "request_id": "0d8b1a2e-9f6f-4c5b-8c1d-0c2b8b3e4f50",
+  "remote_ip": "127.0.0.1"
+}
+```
+
 ---
 
 ## Architecture Decisions
