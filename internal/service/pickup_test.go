@@ -170,6 +170,34 @@ func (s *PickupServiceSuite) TestComplete_RejectsNonScheduledStatus() {
 	s.Require().ErrorIs(err, domain.ErrConflict)
 }
 
+// TestComplete_Idempotency_AlreadyCompleted asserts that a second Complete call
+// on a pickup that has already been completed is rejected with ErrConflict —
+// it must NOT proceed to BeginTx and create a duplicate payment. This is the
+// idempotency contract for BR-05.
+func (s *PickupServiceSuite) TestComplete_Idempotency_AlreadyCompleted() {
+	id := uuid.New()
+	s.pickupRepo.On("FindByID", mock.Anything, id).Return(&domain.WastePickup{
+		ID:     id,
+		Status: domain.PickupStatusCompleted,
+		Type:   domain.WasteTypeOrganic,
+	}, nil)
+
+	_, err := s.svc.Complete(s.T().Context(), id)
+	s.Require().ErrorIs(err, domain.ErrConflict)
+}
+
+func (s *PickupServiceSuite) TestComplete_RejectsCanceledPickup() {
+	id := uuid.New()
+	s.pickupRepo.On("FindByID", mock.Anything, id).Return(&domain.WastePickup{
+		ID:     id,
+		Status: domain.PickupStatusCanceled,
+		Type:   domain.WasteTypeOrganic,
+	}, nil)
+
+	_, err := s.svc.Complete(s.T().Context(), id)
+	s.Require().ErrorIs(err, domain.ErrConflict)
+}
+
 // TestComplete_BR05 verifies the payment amount is set correctly from PaymentAmounts map.
 // The full atomic behaviour is covered by integration tests.
 func (s *PickupServiceSuite) TestComplete_BR05_AmountOrganic() {
