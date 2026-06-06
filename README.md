@@ -284,6 +284,10 @@ Deleting a household cascades to all its pickups, which cascade to all their pay
 
 ## API Reference
 
+### Postman Collection
+
+Import `api/community-waste.postman_collection.json` into Postman (27 requests, all with saved response examples). Set the `base_url` collection variable to `http://localhost:8080`.
+
 ### Health
 
 | Method | Path | Description |

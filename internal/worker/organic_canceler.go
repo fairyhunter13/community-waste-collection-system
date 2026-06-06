@@ -52,6 +52,7 @@ func (w *OrganicCanceler) Start(ctx context.Context) {
 	}
 }
 
+// run enforces BR-04: organic pickups not scheduled within the cutoff period are automatically cancelled.
 func (w *OrganicCanceler) run(ctx context.Context) {
 	ctx, span := observability.Tracer().Start(ctx, "worker.organicCanceler.run")
 	defer span.End()
