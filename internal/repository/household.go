@@ -110,15 +110,17 @@ func (r *householdRepo) List(ctx context.Context, page, perPage int) ([]*domain.
 	defer span.End()
 	start := time.Now()
 
-	type householdRow struct {
-		domain.Household
-		TotalCount int `db:"total_count"`
+	var total int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM households`).Scan(&total); err != nil {
+		observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, 0, fmt.Errorf("count households: %w", domain.ErrInternalFailure)
 	}
 
-	var rows []householdRow
-	err := r.db.SelectContext(ctx, &rows, `
-		SELECT *, COUNT(*) OVER() AS total_count
-		FROM households
+	var households []*domain.Household
+	err := r.db.SelectContext(ctx, &households, `
+		SELECT * FROM households
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`, perPage, (page-1)*perPage)
@@ -130,14 +132,7 @@ func (r *householdRepo) List(ctx context.Context, page, perPage int) ([]*domain.
 		return nil, 0, fmt.Errorf("list households: %w", domain.ErrInternalFailure)
 	}
 
-	households := make([]*domain.Household, len(rows))
-	total := 0
-	for i, row := range rows {
-		h := row.Household
-		households[i] = &h
-		total = row.TotalCount
-	}
-	span.SetAttributes(attribute.Int("result.count", total))
+	span.SetAttributes(attribute.Int("result.count", len(households)))
 	span.SetStatus(codes.Ok, "")
 	return households, total, nil
 }
