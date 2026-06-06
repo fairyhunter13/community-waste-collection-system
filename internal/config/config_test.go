@@ -108,6 +108,38 @@ func TestLoad_FromEnv(t *testing.T) {
 	}
 }
 
+func TestValidate_DefaultsPass(t *testing.T) {
+	cfg := Load()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate on defaults: unexpected error: %v", err)
+	}
+}
+
+func TestValidate_RejectsInvariantViolations(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(*Config)
+	}{
+		{"cutoff days zero", func(c *Config) { c.WorkerOrganicCutoffDays = 0 }},
+		{"rate limit rps zero", func(c *Config) { c.RateLimitRPS = 0 }},
+		{"rate limit burst zero", func(c *Config) { c.RateLimitBurst = 0 }},
+		{"upload size zero", func(c *Config) { c.MaxUploadSizeMB = 0 }},
+		{"empty database URL", func(c *Config) { c.DatabaseURL = "" }},
+		{"non-numeric app port", func(c *Config) { c.AppPort = "abc" }},
+		{"db max open conns zero", func(c *Config) { c.DBMaxOpenConns = 0 }},
+		{"worker interval too small", func(c *Config) { c.WorkerCancelInterval = 100 * time.Millisecond }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := Load()
+			tc.mut(cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Errorf("Validate(%s): want error, got nil", tc.name)
+			}
+		})
+	}
+}
+
 func TestLoad_InvalidEnvFallsToDefault(t *testing.T) {
 	t.Setenv("DB_MAX_OPEN_CONNS", "not-a-number")
 	t.Setenv("RATE_LIMIT_RPS", "bad-float")

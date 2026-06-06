@@ -14,6 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
 	"github.com/fairyhunter13/community-waste-collection-system/internal/observability"
@@ -366,6 +367,13 @@ func (r *paymentRepo) PaymentSummary(ctx context.Context) (*domain.PaymentSummar
 	}, nil
 }
 
+// HouseholdHistory fans out the three lookups (household, pickups, payments)
+// concurrently via errgroup so wall-clock is one round-trip instead of three.
+// The fan-out is safe: pickup/payment queries on a non-existent household just
+// return zero rows, and the "not found" semantic is preserved by checking the
+// household result before returning success. The small amount of wasted work
+// when the household does not exist is acceptable in exchange for cutting p95
+// latency on the common (exists) path.
 func (r *paymentRepo) HouseholdHistory(ctx context.Context, householdID uuid.UUID) (*domain.HouseholdHistoryResult, error) {
 	ctx, span := observability.Tracer().Start(ctx, "repository.payment.HouseholdHistory")
 	span.SetAttributes(
@@ -374,56 +382,74 @@ func (r *paymentRepo) HouseholdHistory(ctx context.Context, householdID uuid.UUI
 		attribute.String("household.id", householdID.String()),
 	)
 	defer span.End()
-	start := time.Now()
 
-	var household domain.Household
-	err := r.db.GetContext(ctx, &household, `SELECT * FROM households WHERE id = $1`, householdID)
-	observability.DbQueryDurationSeconds.WithLabelValues("households", "SELECT").Observe(time.Since(start).Seconds())
-	if errors.Is(err, sql.ErrNoRows) {
+	var (
+		household   domain.Household
+		pickupRows  []domain.WastePickup
+		paymentRows []domain.Payment
+		notFound    bool
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		t := time.Now()
+		err := r.db.GetContext(gctx, &household, `SELECT * FROM households WHERE id = $1`, householdID)
+		observability.DbQueryDurationSeconds.WithLabelValues("households", "SELECT").Observe(time.Since(t).Seconds())
+		if errors.Is(err, sql.ErrNoRows) {
+			notFound = true
+			return nil
+		}
+		if err != nil {
+			observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
+			return fmt.Errorf("household history: %w", domain.ErrInternalFailure)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		t := time.Now()
+		err := r.db.SelectContext(gctx, &pickupRows,
+			`SELECT * FROM waste_pickups WHERE household_id = $1 ORDER BY created_at DESC`,
+			householdID,
+		)
+		observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(t).Seconds())
+		if err != nil {
+			observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
+			return fmt.Errorf("household history pickups: %w", domain.ErrInternalFailure)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		t := time.Now()
+		err := r.db.SelectContext(gctx, &paymentRows,
+			`SELECT * FROM payments WHERE household_id = $1 ORDER BY created_at DESC`,
+			householdID,
+		)
+		observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(t).Seconds())
+		if err != nil {
+			observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
+			return fmt.Errorf("household history payments: %w", domain.ErrInternalFailure)
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	if notFound {
 		span.SetStatus(codes.Ok, "not found")
 		return nil, fmt.Errorf("household %s: %w", householdID, domain.ErrNotFound)
 	}
-	if err != nil {
-		observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, fmt.Errorf("household history: %w", domain.ErrInternalFailure)
-	}
-
-	var pickupRows []domain.WastePickup
-	t2 := time.Now()
-	if err := r.db.SelectContext(ctx, &pickupRows,
-		`SELECT * FROM waste_pickups WHERE household_id = $1 ORDER BY created_at DESC`,
-		householdID,
-	); err != nil {
-		observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(t2).Seconds())
-		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, fmt.Errorf("household history pickups: %w", domain.ErrInternalFailure)
-	}
-	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(t2).Seconds())
 
 	pickups := make([]*domain.WastePickup, len(pickupRows))
 	for i := range pickupRows {
 		p := pickupRows[i]
 		pickups[i] = &p
 	}
-
-	var paymentRows []domain.Payment
-	t3 := time.Now()
-	if err := r.db.SelectContext(ctx, &paymentRows,
-		`SELECT * FROM payments WHERE household_id = $1 ORDER BY created_at DESC`,
-		householdID,
-	); err != nil {
-		observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(t3).Seconds())
-		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, fmt.Errorf("household history payments: %w", domain.ErrInternalFailure)
-	}
-	observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(t3).Seconds())
-
 	payments := make([]*domain.Payment, len(paymentRows))
 	for i := range paymentRows {
 		p := paymentRows[i]

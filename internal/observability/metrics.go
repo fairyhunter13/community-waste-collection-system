@@ -89,6 +89,42 @@ var WorkerExpiredFoundTotal = promauto.NewCounter(prometheus.CounterOpts{
 	Help: "Total expired organic pickups found by the worker.",
 })
 
+// WorkerCyclesFailedTotal counts worker cycles that ended in a panic and were
+// recovered. Distinct from WorkerCyclesTotal (which includes successful
+// cycles) so that a single failing cycle does not poison the success rate.
+var WorkerCyclesFailedTotal = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "worker_cycles_failed_total",
+	Help: "Total worker cycles that recovered from a panic.",
+})
+
+// RateLimitActiveClients reports the number of unique client IPs currently
+// tracked by the per-IP rate limiter. Used to size eviction thresholds and to
+// alert on unbounded growth.
+var RateLimitActiveClients = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "rate_limit_active_clients",
+	Help: "Current number of client IPs tracked by the per-IP rate limiter.",
+})
+
+// --- DB connection pool gauges (scraped from sql.DB.Stats every 15s) ---
+
+// DBPoolOpenConnections — total open connections (in use + idle).
+var DBPoolOpenConnections = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "db_pool_open_connections",
+	Help: "Total open DB connections (idle + in use).",
+})
+
+// DBPoolInUse — connections currently checked out by application code.
+var DBPoolInUse = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "db_pool_in_use_connections",
+	Help: "DB connections currently in use.",
+})
+
+// DBPoolIdle — connections sitting idle in the pool.
+var DBPoolIdle = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "db_pool_idle_connections",
+	Help: "DB connections sitting idle in the pool.",
+})
+
 // --- S3 storage metrics ---
 
 // S3UploadDurationSeconds tracks the latency of S3 upload operations.

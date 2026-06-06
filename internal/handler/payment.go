@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"fmt"
+	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -12,6 +13,17 @@ import (
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
 )
+
+// allowedProofMIME is the closed allowlist of Content-Type values the proof
+// upload endpoint will accept. Any value outside this set returns 400 — we do
+// not attempt content sniffing or normalisation because the wire-level type
+// is the contract clients agree to.
+var allowedProofMIME = map[string]bool{
+	"image/jpeg":      true,
+	"image/jpg":       true,
+	"image/png":       true,
+	"application/pdf": true,
+}
 
 // CreatePayment handles POST /api/payments.
 func (h *Handler) CreatePayment(c echo.Context) error {
@@ -97,14 +109,21 @@ func (h *Handler) ConfirmPayment(c echo.Context) error {
 
 	file, header, err := c.Request().FormFile("proof")
 	if err != nil {
+		slog.WarnContext(c.Request().Context(), "proof file upload rejected", "error", err.Error())
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			return respondError(c, http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE",
+				"proof file exceeds upload size limit")
+		}
 		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR",
-			fmt.Sprintf("proof file required: %v", err))
+			"proof file required")
 	}
 	defer func() { _ = file.Close() }()
 
 	contentType := header.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = "application/octet-stream"
+	if !allowedProofMIME[contentType] {
+		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR",
+			"unsupported proof type: must be image/jpeg, image/png, or application/pdf")
 	}
 
 	payment, err := h.paymentSvc.Confirm(c.Request().Context(), id, file, header.Size, contentType)

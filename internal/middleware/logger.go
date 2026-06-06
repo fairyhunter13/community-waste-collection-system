@@ -27,7 +27,13 @@ func RequestLogger(logger *slog.Logger) echo.MiddlewareFunc {
 				slog.String("ip", c.RealIP()),
 			}
 			if span := trace.SpanFromContext(req.Context()); span.SpanContext().IsValid() {
-				attrs = append(attrs, slog.String("trace_id", span.SpanContext().TraceID().String()))
+				attrs = append(attrs,
+					slog.String("trace_id", span.SpanContext().TraceID().String()),
+					slog.String("span_id", span.SpanContext().SpanID().String()),
+				)
+			}
+			if rid := res.Header().Get(echo.HeaderXRequestID); rid != "" {
+				attrs = append(attrs, slog.String("request_id", rid))
 			}
 
 			if err != nil {
