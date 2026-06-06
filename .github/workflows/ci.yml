@@ -124,10 +124,8 @@ jobs:
           echo "=== Unit test coverage ==="
           go tool cover -func=coverage.out
 
-          TOTAL=$(cat coverage.out coverage-integration.out | \
-            go tool cover -func=/dev/stdin 2>/dev/null | \
-            grep '^total:' | tail -1 | awk '{print $3}' | tr -d '%')
-          echo "Total combined coverage: ${TOTAL}%"
+          TOTAL=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
+          echo "Total unit coverage: ${TOTAL}%"
 
           MIN=80
           if awk "BEGIN { exit ($TOTAL > $MIN ? 0 : 1) }"; then

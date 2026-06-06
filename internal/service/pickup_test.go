@@ -48,6 +48,15 @@ func (s *PickupServiceSuite) TestList_DelegatesToRepo() {
 	s.Equal(pickups, got)
 }
 
+func (s *PickupServiceSuite) TestList_RepoError_Propagates() {
+	filter := domain.PickupFilter{Page: 1, PerPage: 10}
+	s.pickupRepo.On("List", mock.Anything, filter).
+		Return(([]*domain.WastePickup)(nil), 0, domain.ErrInternalFailure)
+
+	_, _, err := s.svc.List(s.T().Context(), filter)
+	s.Require().ErrorIs(err, domain.ErrInternalFailure)
+}
+
 // ── Create ────────────────────────────────────────────────────────────────────
 
 func (s *PickupServiceSuite) TestCreate_BR01_BlockedByPendingPayment() {
@@ -140,6 +149,15 @@ func (s *PickupServiceSuite) TestSchedule_Success_OrganicNoSafetyCheckNeeded() {
 
 // ── Complete ──────────────────────────────────────────────────────────────────
 
+func (s *PickupServiceSuite) TestComplete_FindByIDError_Propagates() {
+	id := uuid.New()
+	s.pickupRepo.On("FindByID", mock.Anything, id).
+		Return((*domain.WastePickup)(nil), domain.ErrNotFound)
+
+	_, err := s.svc.Complete(s.T().Context(), id)
+	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
+
 func (s *PickupServiceSuite) TestComplete_RejectsNonScheduledStatus() {
 	id := uuid.New()
 	s.pickupRepo.On("FindByID", mock.Anything, id).Return(&domain.WastePickup{
@@ -172,6 +190,25 @@ func (s *PickupServiceSuite) TestComplete_BR05_AmountPaper() {
 }
 
 // ── Cancel ────────────────────────────────────────────────────────────────────
+
+func (s *PickupServiceSuite) TestCancel_RepoError_Propagates() {
+	id := uuid.New()
+	s.pickupRepo.On("CancelIfCancellable", mock.Anything, id).
+		Return(false, domain.ErrInternalFailure)
+
+	_, err := s.svc.Cancel(s.T().Context(), id)
+	s.Require().ErrorIs(err, domain.ErrInternalFailure)
+}
+
+func (s *PickupServiceSuite) TestCancel_FindByIDError_WhenNotCancellable() {
+	id := uuid.New()
+	s.pickupRepo.On("CancelIfCancellable", mock.Anything, id).Return(false, nil)
+	s.pickupRepo.On("FindByID", mock.Anything, id).
+		Return((*domain.WastePickup)(nil), domain.ErrNotFound)
+
+	_, err := s.svc.Cancel(s.T().Context(), id)
+	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
 
 func (s *PickupServiceSuite) TestCancel_RejectsCompleted() {
 	id := uuid.New()

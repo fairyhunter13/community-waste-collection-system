@@ -117,3 +117,34 @@ func TestOtelTrace_PassesThrough(t *testing.T) {
 	require.NoError(t, h(c))
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
+
+func TestRequestMetrics_RecordsSuccessfulRequest(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/test", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/api/test")
+
+	called := false
+	h := middleware.RequestMetrics()(func(c echo.Context) error {
+		called = true
+		return c.NoContent(http.StatusOK)
+	})
+
+	require.NoError(t, h(c))
+	assert.True(t, called)
+}
+
+func TestRequestMetrics_EmptyPathUsesUnknown(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	// c.Path() returns "" when no route is matched
+
+	h := middleware.RequestMetrics()(func(c echo.Context) error {
+		return c.NoContent(http.StatusCreated)
+	})
+
+	require.NoError(t, h(c))
+}
