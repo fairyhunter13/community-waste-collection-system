@@ -124,15 +124,18 @@ jobs:
           echo "=== Unit test coverage ==="
           go tool cover -func=coverage.out
 
-          TOTAL=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
-          echo "Total unit coverage: ${TOTAL}%"
+          TOTAL=$(cat coverage.out coverage-integration.out | \
+            go tool cover -func=/dev/stdin 2>/dev/null | \
+            grep '^total:' | tail -1 | awk '{print $3}' | tr -d '%')
+          echo "Total combined coverage: ${TOTAL}%"
 
           MIN=80
-          if awk "BEGIN { exit !($TOTAL > $MIN) }"; then
+          if awk "BEGIN { exit ($TOTAL > $MIN ? 0 : 1) }"; then
+            echo "PASS: coverage threshold met (${TOTAL}% > ${MIN}%)"
+          else
             echo "FAIL: coverage ${TOTAL}% does not exceed minimum ${MIN}%"
             exit 1
           fi
-          echo "PASS: coverage threshold met (${TOTAL}% > ${MIN}%)"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
