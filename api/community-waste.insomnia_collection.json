@@ -1,0 +1,600 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-06-06T00:00:00.000Z",
+  "__export_source": "manual-conversion",
+  "resources": [
+    {
+      "_id": "wrk_7dd4b88e4e0543d183b1c094d2fd9102",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "Community Waste Collection API",
+      "description": "All endpoints for the Community Waste Collection API.",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_de3ca33060a341f8a5fee0464844dde8",
+      "_type": "environment",
+      "parentId": "wrk_7dd4b88e4e0543d183b1c094d2fd9102",
+      "name": "Local",
+      "data": {
+        "base_url": "http://localhost:8080",
+        "household_id": "00000000-0000-0000-0000-000000000000",
+        "pickup_id": "00000000-0000-0000-0000-000000000000",
+        "payment_id": "00000000-0000-0000-0000-000000000000"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "base_url",
+          "household_id",
+          "pickup_id",
+          "payment_id"
+        ]
+      },
+      "color": null,
+      "isPrivate": false,
+      "metaSortKey": 1
+    },
+    {
+      "_id": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "_type": "request_group",
+      "parentId": "wrk_7dd4b88e4e0543d183b1c094d2fd9102",
+      "name": "Households",
+      "description": "",
+      "metaSortKey": -1
+    },
+    {
+      "_id": "req_093257a811614db9b62675ee0187c96a",
+      "_type": "request",
+      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "name": "Create Household",
+      "method": "POST",
+      "url": "{{base_url}}/api/households",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"owner_name\": \"Budi Santoso\", \"address\": \"Jl. Merdeka No. 1\"}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -2
+    },
+    {
+      "_id": "req_10f9cc4129874c1b85bc5d19d01becec",
+      "_type": "request",
+      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "name": "Create Household \u2014 400 Missing Fields",
+      "method": "POST",
+      "url": "{{base_url}}/api/households",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -3
+    },
+    {
+      "_id": "req_b4d635b3ccb74649a1b201bde786ab8b",
+      "_type": "request",
+      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "name": "List Households",
+      "method": "GET",
+      "url": "{{base_url}}/api/households",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "page",
+          "value": "1",
+          "disabled": false
+        },
+        {
+          "name": "per_page",
+          "value": "10",
+          "disabled": false
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -4
+    },
+    {
+      "_id": "req_bb5e73844e6649bb868912ba7e178a67",
+      "_type": "request",
+      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "name": "Get Household",
+      "method": "GET",
+      "url": "{{base_url}}/api/households/{{household_id}}",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -5
+    },
+    {
+      "_id": "req_67cda936703149188de85d112e9ad1b0",
+      "_type": "request",
+      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "name": "Get Household \u2014 404",
+      "method": "GET",
+      "url": "{{base_url}}/api/households/00000000-0000-0000-0000-000000000000",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -6
+    },
+    {
+      "_id": "req_9554b41978964a268a43c1525b030f0f",
+      "_type": "request",
+      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "name": "Delete Household",
+      "method": "DELETE",
+      "url": "{{base_url}}/api/households/{{household_id}}",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -7
+    },
+    {
+      "_id": "fld_d35a536caf594a16963e9a95390e9594",
+      "_type": "request_group",
+      "parentId": "wrk_7dd4b88e4e0543d183b1c094d2fd9102",
+      "name": "Waste Pickups",
+      "description": "",
+      "metaSortKey": -8
+    },
+    {
+      "_id": "req_9013bb4b77f248f1a48b07cb3afa0cb4",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Create Pickup (organic)",
+      "method": "POST",
+      "url": "{{base_url}}/api/pickups",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"household_id\": \"{{household_id}}\", \"type\": \"organic\"}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -9
+    },
+    {
+      "_id": "req_e0ca8ad6952b43d0931e672f87f83979",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Create Pickup (electronic with safety_check)",
+      "method": "POST",
+      "url": "{{base_url}}/api/pickups",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"household_id\": \"{{household_id}}\", \"type\": \"electronic\", \"safety_check\": true}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -10
+    },
+    {
+      "_id": "req_6331aadb1034469d8328b189946b4a2b",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Create Pickup \u2014 409 Pending Payment",
+      "method": "POST",
+      "url": "{{base_url}}/api/pickups",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"household_id\": \"{{household_id}}\", \"type\": \"plastic\"}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -11
+    },
+    {
+      "_id": "req_f2b525aa079b4038989b678d569e6791",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Create Pickup \u2014 429 Rate Limited",
+      "method": "POST",
+      "url": "{{base_url}}/api/pickups",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"household_id\": \"{{household_id}}\", \"type\": \"organic\"}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -12
+    },
+    {
+      "_id": "req_c6bf7a08ca5a451c923eb4361808eed4",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "List Pickups",
+      "method": "GET",
+      "url": "{{base_url}}/api/pickups",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "page",
+          "value": "1",
+          "disabled": false
+        },
+        {
+          "name": "per_page",
+          "value": "20",
+          "disabled": false
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -13
+    },
+    {
+      "_id": "req_d8eabdb22d364088a78d904645ea0408",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "List Pickups \u2014 filter by status",
+      "method": "GET",
+      "url": "{{base_url}}/api/pickups",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "status",
+          "value": "pending",
+          "disabled": false
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -14
+    },
+    {
+      "_id": "req_e2da5c7ff8bf4ec6ba4ef8d9f0ab57ca",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Schedule Pickup",
+      "method": "PUT",
+      "url": "{{base_url}}/api/pickups/{{pickup_id}}/schedule",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"pickup_date\": \"2026-12-01T10:00:00Z\"}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -15
+    },
+    {
+      "_id": "req_0a85726fdaf14d75891c422c286d9020",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Schedule Pickup \u2014 422 Electronic No Safety Check",
+      "method": "PUT",
+      "url": "{{base_url}}/api/pickups/{{pickup_id}}/schedule",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"pickup_date\": \"2026-12-01T10:00:00Z\"}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -16
+    },
+    {
+      "_id": "req_39d44a8bd3264513bce2c1713dc64ac8",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Complete Pickup",
+      "method": "PUT",
+      "url": "{{base_url}}/api/pickups/{{pickup_id}}/complete",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -17
+    },
+    {
+      "_id": "req_4c6efc6b5fa3499ea93c120b70a301a5",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Cancel Pickup",
+      "method": "PUT",
+      "url": "{{base_url}}/api/pickups/{{pickup_id}}/cancel",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -18
+    },
+    {
+      "_id": "req_f88a5ef7542641ebb60dcd3078f01de1",
+      "_type": "request",
+      "parentId": "fld_d35a536caf594a16963e9a95390e9594",
+      "name": "Cancel Pickup \u2014 409 Already Completed",
+      "method": "PUT",
+      "url": "{{base_url}}/api/pickups/{{pickup_id}}/cancel",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -19
+    },
+    {
+      "_id": "fld_0e90b316b57b45538ddf65649b17d440",
+      "_type": "request_group",
+      "parentId": "wrk_7dd4b88e4e0543d183b1c094d2fd9102",
+      "name": "Payments",
+      "description": "",
+      "metaSortKey": -20
+    },
+    {
+      "_id": "req_ebf47a128b3f4cce91437f996a5753ce",
+      "_type": "request",
+      "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
+      "name": "Create Payment",
+      "method": "POST",
+      "url": "{{base_url}}/api/payments",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "disabled": false
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"household_id\": \"{{household_id}}\", \"waste_id\": \"{{pickup_id}}\", \"amount\": \"50000.00\"}"
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -21
+    },
+    {
+      "_id": "req_b8d9aed881f246e58bfc33f3491621c2",
+      "_type": "request",
+      "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
+      "name": "List Payments",
+      "method": "GET",
+      "url": "{{base_url}}/api/payments",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "page",
+          "value": "1",
+          "disabled": false
+        },
+        {
+          "name": "per_page",
+          "value": "20",
+          "disabled": false
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -22
+    },
+    {
+      "_id": "req_cdb02526b05840dca7be36f2e7d2c39e",
+      "_type": "request",
+      "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
+      "name": "List Payments \u2014 filter by status",
+      "method": "GET",
+      "url": "{{base_url}}/api/payments",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "status",
+          "value": "pending",
+          "disabled": false
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -23
+    },
+    {
+      "_id": "req_627883de2f944ca8828484c6ec84bcbc",
+      "_type": "request",
+      "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
+      "name": "Confirm Payment (multipart proof upload)",
+      "method": "PUT",
+      "url": "{{base_url}}/api/payments/{{payment_id}}/confirm",
+      "headers": [],
+      "parameters": [],
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": [
+          {
+            "name": "proof",
+            "value": "",
+            "type": "file",
+            "disabled": false,
+            "fileName": "/path/to/receipt.jpg"
+          }
+        ]
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -24
+    },
+    {
+      "_id": "req_f9965ce1c2bb4133bf5b523ce26fe015",
+      "_type": "request",
+      "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
+      "name": "Confirm Payment \u2014 400 No File",
+      "method": "PUT",
+      "url": "{{base_url}}/api/payments/{{payment_id}}/confirm",
+      "headers": [],
+      "parameters": [],
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": []
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -25
+    },
+    {
+      "_id": "req_6b27ab2ea62045bf91d378ac23990089",
+      "_type": "request",
+      "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
+      "name": "Confirm Payment \u2014 404",
+      "method": "PUT",
+      "url": "{{base_url}}/api/payments/00000000-0000-0000-0000-000000000000/confirm",
+      "headers": [],
+      "parameters": [],
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": [
+          {
+            "name": "proof",
+            "value": "",
+            "type": "file",
+            "disabled": false,
+            "fileName": "/path/to/receipt.jpg"
+          }
+        ]
+      },
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -26
+    },
+    {
+      "_id": "fld_e514963a4fcd4358874798b6935b540a",
+      "_type": "request_group",
+      "parentId": "wrk_7dd4b88e4e0543d183b1c094d2fd9102",
+      "name": "Reports",
+      "description": "",
+      "metaSortKey": -27
+    },
+    {
+      "_id": "req_0d4258e9e0e54e9886540cad349d5131",
+      "_type": "request",
+      "parentId": "fld_e514963a4fcd4358874798b6935b540a",
+      "name": "Waste Summary",
+      "method": "GET",
+      "url": "{{base_url}}/api/reports/waste-summary",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -28
+    },
+    {
+      "_id": "req_871d1ebd41164dc09fc09329c8742d8c",
+      "_type": "request",
+      "parentId": "fld_e514963a4fcd4358874798b6935b540a",
+      "name": "Payment Summary",
+      "method": "GET",
+      "url": "{{base_url}}/api/reports/payment-summary",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -29
+    },
+    {
+      "_id": "req_cf45c15446bc4c78ab010baecd83dbba",
+      "_type": "request",
+      "parentId": "fld_e514963a4fcd4358874798b6935b540a",
+      "name": "Household History",
+      "method": "GET",
+      "url": "{{base_url}}/api/reports/households/{{household_id}}/history",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -30
+    },
+    {
+      "_id": "req_f0823425191741579b16230bcbac1366",
+      "_type": "request",
+      "parentId": "fld_e514963a4fcd4358874798b6935b540a",
+      "name": "Household History \u2014 404",
+      "method": "GET",
+      "url": "{{base_url}}/api/reports/households/00000000-0000-0000-0000-000000000000/history",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -31
+    }
+  ]
+}

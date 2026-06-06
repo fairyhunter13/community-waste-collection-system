@@ -1,0 +1,77 @@
+# Prometheus alerting rules for the Community Waste Collection API.
+#
+# These rules encode the published SLOs:
+#  - HTTP success rate >= 99% over a 5 min window
+#  - p99 request latency <= 500 ms over a 5 min window (excluding /metrics)
+#  - background worker must execute at least one cycle every 10 minutes
+#  - database scrape target must remain reachable
+#
+# They are intentionally conservative: a single transient blip should not
+# page; a sustained breach should.
+
+groups:
+  - name: waste-collection-slo
+    interval: 30s
+    rules:
+
+      - alert: HighHTTPErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: page
+          slo: http_success_rate
+        annotations:
+          summary: "HTTP 5xx error rate above 1% for 5 min"
+          description: |
+            More than 1% of HTTP responses returned a 5xx status over the
+            last 5 minutes. This breaches the published SLO of 99% success.
+            Check application logs for the failing route(s).
+
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(http_request_duration_seconds_bucket{path!="/metrics"}[5m])) by (le, path)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: page
+          slo: http_latency
+        annotations:
+          summary: "p99 HTTP latency above 500 ms for 5 min on {{ $labels.path }}"
+          description: |
+            The 99th-percentile latency for route {{ $labels.path }} has
+            exceeded 500 ms for 5 consecutive minutes. The published SLO
+            allows 500 ms p99. Check DB latency and downstream calls.
+
+      - alert: BackgroundWorkerStalled
+        expr: increase(worker_cycles_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: page
+          slo: br04_auto_cancel
+        annotations:
+          summary: "Organic-cancel worker has executed zero cycles in 10 min"
+          description: |
+            The BR-04 background worker has not completed a cycle in the
+            last 10 minutes. Pending organic pickups are not being
+            auto-cancelled. Check the API container logs and restart if
+            necessary.
+
+      - alert: APIDown
+        expr: up{job="waste-collection-api"} == 0
+        for: 2m
+        labels:
+          severity: page
+          slo: availability
+        annotations:
+          summary: "Prometheus cannot scrape the API target"
+          description: |
+            Prometheus has been unable to scrape the API metrics endpoint
+            for 2 minutes. The service may be down or unreachable. Check
+            container status and the /health and /readyz probes.
