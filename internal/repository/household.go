@@ -118,7 +118,7 @@ func (r *householdRepo) List(ctx context.Context, page, perPage int) ([]*domain.
 		return nil, 0, fmt.Errorf("count households: %w", domain.ErrInternalFailure)
 	}
 
-	var households []*domain.Household
+	households := make([]*domain.Household, 0)
 	err := r.db.SelectContext(ctx, &households, `
 		SELECT * FROM households
 		ORDER BY created_at DESC
