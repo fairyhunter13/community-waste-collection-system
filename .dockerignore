@@ -1,0 +1,47 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Build artefacts
+bin/
+*.exe
+*.test
+*.out
+coverage*.out
+coverage*.txt
+coverage*.html
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+
+# Tests, fixtures, generated mocks (not needed at runtime)
+test/
+testdata/
+**/*_test.go
+**/mocks/
+
+# Documentation, plans, IDE noise
+*.md
+!build/README.md
+docs/
+plans/
+.github/
+.vscode/
+.idea/
+
+# Tooling configs not needed inside the image
+.golangci.yml
+.golangci.yaml
+.editorconfig
+Makefile
+
+# Local OS junk
+.DS_Store
+Thumbs.db
+
+# Adversarial review artefacts kept out of context
+REQUIREMENTS_RAW.md
+*.pdf
