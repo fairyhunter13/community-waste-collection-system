@@ -436,19 +436,62 @@ Work through this checklist before submission. Every item must be checked.
 - [x] `.env.example` complete with all required variables
 
 ### Observability
-- [x] `curl :2112/metrics` → Prometheus metrics returned (11 instruments: counters, histograms, gauge)
+- [x] `curl :2112/metrics` → Prometheus metrics returned (14 instruments: 11 original + 3 S3 metrics)
 - [x] `curl :6060/debug/pprof/` → pprof index returned
-- [x] OTel traces appear in Jaeger UI (http://localhost:16686) — handler → service → repository spans
+- [x] OTel traces appear in Jaeger UI (http://localhost:16686) — all layers: handler → service → repository → storage spans
 - [x] Request logs include `trace_id` field
-- [x] Grafana dashboard auto-provisions on `make docker-up` (http://localhost:3000, admin/admin)
-- [x] All 6 dashboard rows populated: API traffic, business events, DB performance, worker, Go runtime, process
+- [x] Handler root spans enriched with business attributes (household.id, pickup.type, filter params, etc.)
+- [x] S3 Upload span: `storage.s3.Upload` with bucket, key, content_type, size_bytes attributes
+- [x] Grafana auto-provisions 2 dashboards on `make docker-up` (http://localhost:3000, admin/admin)
+- [x] Dashboard 1 (Waste Collection API): 7 rows — API traffic, business events, DB performance, worker, Go runtime, process, S3 storage + Jaeger traces panel
+- [x] Dashboard 2 (Business Operations): 4 rows — pickup funnel, payment funnel, error breakdown, S3 storage KPIs
+- [x] Grafana Jaeger datasource auto-provisioned with tracesToMetrics linkage
 - [x] Prometheus scrapes app metrics at 15s interval (http://localhost:9090)
+- [x] Prometheus self-scrape uses `prometheus:9090` (container networking, not localhost)
 - [x] OTel collector exports traces to Jaeger via OTLP gRPC (jaeger:14250)
+- [x] docker-compose startup ordering: postgres/minio/otel-collector → app; prometheus → grafana (service_healthy condition)
+- [x] App healthcheck uses `GET /health` endpoint (DB liveness check)
 
 ### Documentation
-- [x] README setup steps verified end-to-end on a clean environment
+- [x] README rewritten with: Key Features, 7-step API Walkthrough, Error Reference table, Data Model ER diagram, 9-service Observability table, 16 metrics table, 5 new env vars, 2 new ADRs
+- [x] `GET /health` endpoint with PostgreSQL liveness check
+- [x] OpenAPI 3.0.3 spec served at `/api/docs/openapi.yaml` (embedded in binary)
+- [x] Swagger UI redirect at `/api/docs`
 - [x] Postman/Insomnia collection imports without errors
 - [x] All 29 collection requests have saved HTTP response examples (success + error cases)
 - [x] All collection requests succeed against running stack
 - [x] `plans/` directory committed with all 7 phase files
 - [x] No company names or test references in any committed file
+
+---
+
+## 5. Adversarial Gap Analysis Findings (June 2026)
+
+All findings from post-completion adversarial review — all resolved:
+
+### Critical (resolved)
+- **C1** CI coverage gate used `<` comparison, allowing exactly 80.0% — fixed to `>` (strictly above)
+- **C2** Prometheus self-scrape used `localhost:9090` which fails in Docker — fixed to `prometheus:9090`
+- **C3** Grafana depended on prometheus without healthcheck — added Prometheus healthcheck + `service_healthy` condition
+- **C4** App started before otel-collector — added `otel-collector: condition: service_started`
+
+### High (resolved)
+- **H1** All 15 handlers had zero span enrichment — added business attributes via `trace.SpanFromContext`
+- **H2** E2E and perf CI jobs depended on `coverage-gate` — corrected to `[test-unit, test-integration]`
+- **H3** Grafana provisioning allowed UI edits (`allowUiUpdates: true`) — set to `false`
+
+### Medium (resolved)
+- **M1** Benchmark targets missing `-race` flag — added to `make bench` and `make perf`
+- **M2** README missing 5 env vars — added `DB_CONN_MAX_IDLE_TIME`, `S3_REGION`, `S3_USE_PATH_STYLE`, `OTEL_SERVICE_VERSION`, `CODECOV_TOKEN`
+- **M3** Codecov threshold `2%` misaligned with CI strict gate — set to `0%`
+
+### New deliverables added
+- `GET /health` endpoint with PostgreSQL liveness check
+- OpenAPI 3.0.3 spec (`api/openapi.yaml`) embedded in binary, served at `/api/docs/openapi.yaml`
+- Swagger UI redirect at `/api/docs`
+- OTel spans on S3 storage layer (`storage.s3.Upload`, `storage.s3.EnsureBucket`)
+- 3 new Prometheus metrics: `s3_upload_duration_seconds`, `s3_upload_bytes_total`, `s3_errors_total`
+- Grafana Jaeger datasource (`deployments/grafana/provisioning/datasources/jaeger.yaml`)
+- Traces row in Waste Collection API dashboard using Jaeger
+- Business Operations dashboard with 4 rows and 22 panels
+- S3 storage row added to both dashboards
