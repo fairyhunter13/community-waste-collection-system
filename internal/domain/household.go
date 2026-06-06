@@ -22,7 +22,13 @@ type CreateHouseholdRequest struct {
 	Address   string `json:"address"    validate:"required,min=1"`
 }
 
-// HouseholdRepository defines data access operations for households.
+// HouseholdRepository persists household records.
+//
+// Implementations are expected to:
+//   - Generate the row's primary key inside Create when h.ID is the zero UUID.
+//   - Return [ErrNotFound] (wrapped) from FindByID and Delete when the row is absent.
+//   - Cascade related pickups and payments on Delete; the migration enforces this.
+//   - Be safe for concurrent use; all methods take a context for cancellation.
 type HouseholdRepository interface {
 	Create(ctx context.Context, h *Household) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Household, error)
@@ -30,7 +36,12 @@ type HouseholdRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
-// HouseholdService defines business operations for households.
+// HouseholdService is the business-rule entry point for household operations.
+//
+// Service methods emit an OTel span per call and translate repository sentinels
+// into domain errors ([ErrNotFound], [ErrValidation]) so handlers can map them
+// uniformly. Cascading Delete is the deliberate trade-off documented in
+// docs/adr/0007-cascade-delete.md — callers should warn users before invoking.
 type HouseholdService interface {
 	Create(ctx context.Context, req CreateHouseholdRequest) (*Household, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*Household, error)

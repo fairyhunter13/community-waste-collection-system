@@ -533,6 +533,12 @@ components:
         updated_at:
           type: string
           format: date-time
+      example:
+        id: "550e8400-e29b-41d4-a716-446655440000"
+        owner_name: "Jane Doe"
+        address: "123 Example St"
+        created_at: "2026-06-07T08:14:21Z"
+        updated_at: "2026-06-07T08:14:21Z"
 
     CreateHouseholdRequest:
       type: object
@@ -544,6 +550,9 @@ components:
         address:
           type: string
           minLength: 1
+      example:
+        owner_name: "Jane Doe"
+        address: "123 Example St"
 
     HouseholdResponse:
       type: object
@@ -593,6 +602,15 @@ components:
         updated_at:
           type: string
           format: date-time
+      example:
+        id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        household_id: "550e8400-e29b-41d4-a716-446655440000"
+        type: "plastic"
+        status: "scheduled"
+        pickup_date: "2026-06-10T09:00:00Z"
+        safety_check: false
+        created_at: "2026-06-07T08:14:21Z"
+        updated_at: "2026-06-07T08:14:21Z"
 
     CreatePickupRequest:
       type: object
@@ -607,6 +625,10 @@ components:
           type: boolean
           default: false
           description: Required to be true for electronic pickups before scheduling
+      example:
+        household_id: "550e8400-e29b-41d4-a716-446655440000"
+        type: "plastic"
+        safety_check: false
 
     SchedulePickupRequest:
       type: object
@@ -619,6 +641,9 @@ components:
         safety_check:
           type: boolean
           description: Required to be true for electronic pickup types
+      example:
+        pickup_date: "2026-06-10T09:00:00Z"
+        safety_check: false
 
     PickupResponse:
       type: object
@@ -674,6 +699,16 @@ components:
         updated_at:
           type: string
           format: date-time
+      example:
+        id: "9b2fa0fa-3b3f-4f3a-a8b3-1f1a2b3c4d5e"
+        household_id: "550e8400-e29b-41d4-a716-446655440000"
+        waste_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        amount: "50000.00"
+        status: "pending"
+        payment_date: null
+        proof_file_url: null
+        created_at: "2026-06-07T08:14:21Z"
+        updated_at: "2026-06-07T08:14:21Z"
 
     CreatePaymentRequest:
       type: object
@@ -688,6 +723,10 @@ components:
         amount:
           type: string
           description: Positive decimal string (e.g. "50000.00")
+      example:
+        household_id: "550e8400-e29b-41d4-a716-446655440000"
+        waste_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        amount: "50000.00"
 
     PaymentResponse:
       type: object
