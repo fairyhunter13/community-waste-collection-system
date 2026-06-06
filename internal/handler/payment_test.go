@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strings"
 	"testing"
 
@@ -77,7 +78,7 @@ func (s *PaymentHandlerSuite) TestConfirmPayment_200() {
 
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
-	part, err := mw.CreateFormFile("proof", "receipt.jpg")
+	part, err := newProofPart(mw, "receipt.jpg", "image/jpeg")
 	s.Require().NoError(err)
 	_, err = part.Write([]byte("fake-image-data"))
 	s.Require().NoError(err)
@@ -164,7 +165,7 @@ func (s *PaymentHandlerSuite) TestConfirmPayment_404() {
 
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
-	part, err := mw.CreateFormFile("proof", "receipt.jpg")
+	part, err := newProofPart(mw, "receipt.jpg", "image/jpeg")
 	s.Require().NoError(err)
 	_, err = part.Write([]byte("fake-image-data"))
 	s.Require().NoError(err)
@@ -175,4 +176,17 @@ func (s *PaymentHandlerSuite) TestConfirmPayment_404() {
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
 	s.Equal(http.StatusNotFound, rec.Code)
+}
+
+// newProofPart writes a multipart form file part with an explicit
+// Content-Type so the handler's MIME allowlist (image/jpeg, image/png,
+// application/pdf) is satisfied. The default mw.CreateFormFile() emits
+// application/octet-stream, which the allowlist rejects.
+func newProofPart(mw *multipart.Writer, filename, contentType string) (interface {
+	Write(p []byte) (n int, err error)
+}, error) {
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", `form-data; name="proof"; filename="`+filename+`"`)
+	h.Set("Content-Type", contentType)
+	return mw.CreatePart(h)
 }
