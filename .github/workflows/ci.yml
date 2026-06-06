@@ -143,6 +143,40 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
 
+  contract:
+    name: API Contract Lint
+    runs-on: ubuntu-24.04
+    needs: [lint]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Postman + Insomnia collections parse
+        run: |
+          python3 -c "
+          import json, sys
+          pm = json.load(open('api/community-waste.postman_collection.json'))
+          ins = json.load(open('api/community-waste.insomnia_collection.json'))
+
+          pm_count = sum(len(f.get('item', [])) for f in pm.get('item', []))
+          ins_count = sum(1 for r in ins['resources'] if r['_type'] == 'request')
+          print(f'Postman requests:  {pm_count}')
+          print(f'Insomnia requests: {ins_count}')
+
+          if pm_count != ins_count:
+              print(f'ERROR: collection size mismatch ({pm_count} vs {ins_count})', file=sys.stderr)
+              sys.exit(1)
+          if pm_count < 25:
+              print(f'ERROR: Postman collection only has {pm_count} requests (expected >= 25)', file=sys.stderr)
+              sys.exit(1)
+          print('OK: collections are valid and in sync')
+          "
+
+      - name: Validate OpenAPI spec
+        uses: char0n/swagger-editor-validate@v1.3.2
+        with:
+          definition-file: api/openapi.yaml
+
   e2e:
     name: End-to-End Tests
     runs-on: ubuntu-24.04
