@@ -215,7 +215,7 @@ func (r *paymentRepo) List(ctx context.Context, filter domain.PaymentFilter) ([]
 		LIMIT $%d OFFSET $%d
 	`, where, n, n+1)
 
-	var payments []*domain.Payment
+	payments := make([]*domain.Payment, 0)
 	err := r.db.SelectContext(ctx, &payments, listQuery, args...)
 	observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {

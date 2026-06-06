@@ -158,7 +158,7 @@ func (r *pickupRepo) List(ctx context.Context, filter domain.PickupFilter) ([]*d
 		LIMIT $%d OFFSET $%d
 	`, where, n, n+1)
 
-	var pickups []*domain.WastePickup
+	pickups := make([]*domain.WastePickup, 0)
 	err := r.db.SelectContext(ctx, &pickups, listQuery, args...)
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
