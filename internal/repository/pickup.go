@@ -140,22 +140,26 @@ func (r *pickupRepo) List(ctx context.Context, filter domain.PickupFilter) ([]*d
 	if len(conds) > 0 {
 		where = "WHERE " + strings.Join(conds, " AND ")
 	}
-	args = append(args, perPage, (page-1)*perPage)
 
-	query := fmt.Sprintf(`
-		SELECT *, COUNT(*) OVER() AS total_count
-		FROM waste_pickups
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM waste_pickups %s`, where)
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, 0, fmt.Errorf("count pickups: %w", domain.ErrInternalFailure)
+	}
+
+	args = append(args, perPage, (page-1)*perPage)
+	listQuery := fmt.Sprintf(`
+		SELECT * FROM waste_pickups
 		%s
 		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, where, n, n+1)
 
-	type pickupRow struct {
-		domain.WastePickup
-		TotalCount int `db:"total_count"`
-	}
-	var rows []pickupRow
-	err := r.db.SelectContext(ctx, &rows, query, args...)
+	var pickups []*domain.WastePickup
+	err := r.db.SelectContext(ctx, &pickups, listQuery, args...)
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
@@ -164,14 +168,7 @@ func (r *pickupRepo) List(ctx context.Context, filter domain.PickupFilter) ([]*d
 		return nil, 0, fmt.Errorf("list pickups: %w", domain.ErrInternalFailure)
 	}
 
-	pickups := make([]*domain.WastePickup, len(rows))
-	total := 0
-	for i, row := range rows {
-		p := row.WastePickup
-		pickups[i] = &p
-		total = row.TotalCount
-	}
-	span.SetAttributes(attribute.Int("result.count", total))
+	span.SetAttributes(attribute.Int("result.count", len(pickups)))
 	span.SetStatus(codes.Ok, "")
 	return pickups, total, nil
 }
