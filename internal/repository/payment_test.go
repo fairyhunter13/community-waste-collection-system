@@ -128,11 +128,11 @@ func (s *PaymentRepoSuite) TestList_FilterByStatus() {
 	h := s.newHousehold()
 	p1 := s.newPickup(h.ID)
 	p2 := s.newPickup(h.ID)
+	// The partial UNIQUE index permits at most one pending payment per
+	// household, so confirm pay1 (→ paid) before inserting pay2.
 	pay1 := s.newPayment(h.ID, p1.ID)
-	_ = s.newPayment(h.ID, p2.ID)
-
-	// Confirm pay1 so it becomes 'paid'.
 	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay1.ID, "http://example.com/proof.jpg", time.Now()))
+	_ = s.newPayment(h.ID, p2.ID)
 
 	status := domain.PaymentStatusPending
 	payments, total, err := s.repo.List(s.T().Context(), domain.PaymentFilter{
@@ -149,14 +149,16 @@ func (s *PaymentRepoSuite) TestList_FilterByDateRange() {
 	h := s.newHousehold()
 	p1 := s.newPickup(h.ID)
 	p2 := s.newPickup(h.ID)
+
+	// Per the partial UNIQUE index, only one pending payment may exist per
+	// household. Confirm each before inserting the next.
 	pay1 := s.newPayment(h.ID, p1.ID)
+	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay1.ID, "http://example.com/1.jpg", time.Now()))
 	pay2 := s.newPayment(h.ID, p2.ID)
+	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay2.ID, "http://example.com/2.jpg", time.Now()))
 
 	yesterday := time.Now().Add(-24 * time.Hour)
 	tomorrow := time.Now().Add(24 * time.Hour)
-
-	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay1.ID, "http://example.com/1.jpg", time.Now()))
-	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay2.ID, "http://example.com/2.jpg", time.Now()))
 
 	payments, total, err := s.repo.List(s.T().Context(), domain.PaymentFilter{
 		DateFrom: &yesterday,
@@ -198,10 +200,11 @@ func (s *PaymentRepoSuite) TestPaymentSummary_CountsAndRevenue() {
 	h := s.newHousehold()
 	p1 := s.newPickup(h.ID)
 	p2 := s.newPickup(h.ID)
+	// Confirm pay1 (→ paid) before inserting pay2 so the household has at
+	// most one pending payment at a time, per the partial UNIQUE index.
 	pay1 := s.newPayment(h.ID, p1.ID)
-	_ = s.newPayment(h.ID, p2.ID)
-
 	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay1.ID, "http://example.com/proof.jpg", time.Now()))
+	_ = s.newPayment(h.ID, p2.ID)
 
 	result, err := s.repo.PaymentSummary(s.T().Context())
 	s.Require().NoError(err)
@@ -299,13 +302,14 @@ func (s *PaymentRepoSuite) TestList_AllThreeFilters_Combined() {
 	p2 := s.newPickup(h1.ID)
 	p3 := s.newPickup(h2.ID)
 
-	pay1 := s.newPayment(h1.ID, p1.ID) // h1, pending
-	_ = s.newPayment(h1.ID, p2.ID)     // h1, pending  (will stay pending)
-	_ = s.newPayment(h2.ID, p3.ID)     // h2, pending
-
-	// Confirm pay1 — status becomes "paid".
+	// Confirm pay1 (→ paid) before inserting pay2 so the h1 household has at
+	// most one pending payment outstanding at any time, per the partial
+	// UNIQUE index.
 	now := time.Now().UTC()
+	pay1 := s.newPayment(h1.ID, p1.ID) // h1, pending
 	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay1.ID, "http://example.com/1.jpg", now))
+	_ = s.newPayment(h1.ID, p2.ID) // h1, pending  (will stay pending)
+	_ = s.newPayment(h2.ID, p3.ID) // h2, pending
 
 	yesterday := now.Add(-24 * time.Hour)
 	tomorrow := now.Add(24 * time.Hour)
@@ -337,14 +341,14 @@ func (s *PaymentRepoSuite) TestPaymentSummary_AllStatuses() {
 	p3 := &domain.WastePickup{HouseholdID: h.ID, Type: domain.WasteTypeOrganic, Status: domain.PickupStatusPending}
 	s.Require().NoError(s.pickupRepo.Create(s.T().Context(), p3))
 
-	// pending payment
-	_ = s.newPayment(h.ID, p1.ID)
-
-	// paid payment
+	// paid payment — confirm first so the household has no pending payment
+	// while we go on to create the pending and failed rows. The partial
+	// UNIQUE index permits exactly one pending payment per household.
 	pay2 := s.newPayment(h.ID, p2.ID)
 	s.Require().NoError(s.repo.Confirm(s.T().Context(), pay2.ID, "http://example.com/2.jpg", time.Now()))
 
-	// failed payment — insert directly with failed status
+	// failed payment — direct insert with status=failed (not constrained
+	// by the partial pending-only index).
 	failedPay := &domain.Payment{
 		HouseholdID: h.ID,
 		WasteID:     p3.ID,
@@ -352,6 +356,9 @@ func (s *PaymentRepoSuite) TestPaymentSummary_AllStatuses() {
 		Status:      domain.PaymentStatusFailed,
 	}
 	s.Require().NoError(s.repo.Create(s.T().Context(), failedPay))
+
+	// pending payment — only insert after the paid row is in place.
+	_ = s.newPayment(h.ID, p1.ID)
 
 	result, err := s.repo.PaymentSummary(s.T().Context())
 	s.Require().NoError(err)
