@@ -51,12 +51,12 @@ test-e2e:
 	    -timeout 180s -v
 
 bench:
-	go test -bench=. -benchmem -run='^$$' -tags=integration \
+	go test -race -bench=. -benchmem -run='^$$' -tags=integration \
 	    ./internal/... \
 	    -timeout 120s
 
 perf:
-	go test -bench=. -benchmem -run='^$$' -tags=perf \
+	go test -race -bench=. -benchmem -run='^$$' -tags=perf \
 	    ./test/perf/... \
 	    -timeout 300s
 
