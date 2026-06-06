@@ -11,11 +11,23 @@ services:
       - "6060:6060"
       - "2112:2112"
     env_file: ../.env
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/waste_collection?sslmode=disable"
+      S3_ENDPOINT: "http://minio:9000"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
 
   postgres:
@@ -27,7 +39,7 @@ services:
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     ports:
-      - "5432:5432"
+      - "127.0.0.1:15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -60,10 +72,6 @@ services:
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "8888:8888"
     depends_on:
       - jaeger
 
@@ -88,6 +96,12 @@ services:
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   grafana:
     image: grafana/grafana:11.1.0
@@ -104,7 +118,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
 
 volumes:
   postgres_data:
