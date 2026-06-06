@@ -27,6 +27,17 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker.
 
 ---
 
+## Table of Contents — Quick Links
+
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Troubleshooting](#troubleshooting)
+- [API Walkthrough](#api-walkthrough)
+- [API Reference](#api-reference)
+- [Observability](#observability)
+- [Architecture](#architecture)
+- [Architecture Decisions](#architecture-decisions) — [ADR index](docs/adr/)
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
@@ -46,10 +57,14 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker.
 
 ## Prerequisites
 
-- Go 1.26+
-- Docker + Docker Compose
-- `make`
-- (Optional) [`migrate` CLI](https://github.com/golang-migrate/migrate) for manual migration runs
+- **Go 1.26+** (`go version` should report `go1.26.x`).
+- **Docker 24+** with the **Compose v2 plugin** (`docker compose version` should report `2.x`). The legacy `docker-compose` shim is not used.
+- **GNU make** (`make --version`). On macOS, ship Xcode Command Line Tools.
+- **Ports free** on the host: `8080` (API), `5432` (Postgres), `9000`/`9001` (MinIO), `3000` (Grafana), `9090` (Prometheus), `16686` (Jaeger UI), `4317`/`4318` (OTLP), `2112` (Prometheus scrape target), `6060` (pprof). See [Troubleshooting](#troubleshooting) if any of these collide with a host service.
+- **Optional but recommended for local SQL work:**
+  - [`migrate` CLI](https://github.com/golang-migrate/migrate/releases) — run migrations from the host without entering the API container.
+  - `psql` client — inspect the live DB during development.
+  - [`newman`](https://github.com/postmanlabs/newman) (`npm i -g newman`) — replay the Postman collection against a running stack.
 
 ---
 
@@ -84,6 +99,89 @@ Grafana auto-provisions two dashboards on startup:
 
 - **Waste Collection API** — 7 rows: API traffic, business events, database performance, background worker, Go runtime, process metrics, S3 storage, and Jaeger traces
 - **Business Operations** — 4 rows: pickup funnel, payment funnel, error breakdown, S3 storage KPIs
+
+---
+
+## Troubleshooting
+
+Common issues encountered when booting the stack for the first time.
+
+### Port already in use
+
+`docker compose up` fails with `bind: address already in use`. The
+service that owns the conflicting port is reported in the error.
+
+```bash
+# Find the host process holding the port (example: 5432)
+sudo ss -tulpn | grep ':5432 '
+
+# Either stop the offending process or remap the port in
+# deployments/docker-compose.yml under the relevant service's
+# `ports:` section, then `make docker-down && make docker-up`.
+```
+
+### Migrations fail with `connection refused`
+
+Postgres takes a few seconds to accept connections after the container
+starts. Wait for the `db` service to become healthy before running
+`make migrate-up`:
+
+```bash
+docker compose -f deployments/docker-compose.yml ps db | grep healthy
+```
+
+If healthy still fails, confirm the `DATABASE_URL` in `.env` points at
+`localhost:5432` (not `db:5432`, which is the in-network hostname only
+visible to other compose services).
+
+### MinIO bucket missing on first run
+
+The application creates the `proofs` bucket on startup if absent. If
+`PUT /api/payments/:id/confirm` returns 500 with `BucketNotFound`, the
+boot-time check ran before MinIO finished initialising. Restart the
+API container:
+
+```bash
+docker compose -f deployments/docker-compose.yml restart api
+```
+
+You can also create the bucket manually in the MinIO console at
+http://localhost:9001 (login `minioadmin` / `minioadmin`).
+
+### OpenTelemetry collector reports `connection refused` for Jaeger
+
+The `otel-collector` service must wait for `jaeger` to be ready before
+exporting traces. The Compose file sets `depends_on: jaeger` with a
+healthcheck — if you see the error, restart the collector after Jaeger
+finishes booting:
+
+```bash
+docker compose -f deployments/docker-compose.yml restart otel-collector
+```
+
+### `migrate` CLI not found
+
+Install from the [golang-migrate releases](https://github.com/golang-migrate/migrate/releases).
+Alternatively, run migrations from inside the API container:
+
+```bash
+docker compose -f deployments/docker-compose.yml exec api \
+  migrate -path=/migrations -database "$DATABASE_URL" up
+```
+
+### Grafana panels are empty
+
+Generate traffic before checking dashboards — without requests, the
+panels have no data points to render:
+
+```bash
+for _ in $(seq 1 20); do curl -s http://localhost:8080/health >/dev/null; done
+```
+
+Then refresh Grafana. If panels still show "No data", confirm the
+Prometheus datasource is configured at http://localhost:9090 (it is
+auto-provisioned but may report `unreachable` if Prometheus failed to
+boot).
 
 ---
 
@@ -284,15 +382,29 @@ Deleting a household cascades to all its pickups, which cascade to all their pay
 
 ## API Reference
 
-### Postman Collection
+### Postman / Insomnia Collections
 
-Import `api/community-waste.postman_collection.json` into Postman (27 requests, all with saved response examples). Set the `base_url` collection variable to `http://localhost:8080`.
+Two equivalent collection exports live under `api/` — 27 requests across 4 folders (Households, Waste Pickups, Payments, Reports), each with saved response examples:
+
+| Tool | File |
+|------|------|
+| Postman | `api/community-waste.postman_collection.json` |
+| Insomnia v4 | `api/community-waste.insomnia_collection.json` |
+
+Set the `base_url` collection variable to `http://localhost:8080`. Replay against a running stack with [Newman](https://github.com/postmanlabs/newman):
+
+```bash
+npm i -g newman
+newman run api/community-waste.postman_collection.json \
+  --env-var base_url=http://localhost:8080
+```
 
 ### Health
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/health` | Returns `{"status":"ok"}` or 503 if DB is unreachable |
+| `GET` | `/health` | Liveness probe — returns `{"status":"ok"}` whenever the process is bound and serving. Does NOT touch the DB. |
+| `GET` | `/readyz` | Readiness probe — pings the DB. Returns 200 `{"status":"ready"}` when the DB is reachable, 503 `{"status":"unready"}` otherwise. |
 
 ### Documentation
 
@@ -398,6 +510,19 @@ Every request receives a root span created by `otelecho`. All handler, service, 
 
 Span naming convention: `layer.domain.Method` (e.g., `service.pickup.Create`, `repository.household.FindByID`, `storage.s3.Upload`).
 
+### SLOs and Alerts
+
+Service-level objectives ([`deployments/prometheus/alerts.yml`](deployments/prometheus/alerts.yml)):
+
+| SLO | Threshold | Alert |
+|-----|-----------|-------|
+| HTTP success rate | ≥ 99% over 5 min | `HighHTTPErrorRate` |
+| p99 request latency (per route, excl. `/metrics`) | ≤ 500 ms over 5 min | `HighP99Latency` |
+| Worker cycle freshness (BR-04) | ≥ 1 cycle per 10 min | `BackgroundWorkerStalled` |
+| API scrape availability | scrape up for ≥ 2 min | `APIDown` |
+
+Prometheus loads `alerts.yml` via `rule_files:` in `deployments/prometheus.yml`. View live rules at http://localhost:9090/alerts after `make docker-up`.
+
 ---
 
 ## Architecture
@@ -437,26 +562,17 @@ Dependencies only flow inward. Domain interfaces decouple layers.
 
 ## Architecture Decisions
 
-### No ORM — raw SQL via sqlx
-SQL is explicit, reviewable, and optimised per query. The `sqlx` library adds struct scanning without abstraction overhead.
+Eight ADRs document the load-bearing decisions in this codebase. They
+live under [`docs/adr/`](docs/adr/) — each is a short MADR-style record
+with context, decision, and consequences.
 
-### Sentinel errors for domain outcomes
-Five sentinel errors (`ErrNotFound`, `ErrConflict`, `ErrBusinessRule`, `ErrValidation`, `ErrInternalFailure`) allow the handler layer to map outcomes to HTTP status codes via `errors.Is`, without coupling service logic to HTTP.
-
-### `shopspring/decimal` for monetary amounts
-Amounts are stored as PostgreSQL `NUMERIC(12,2)` and scanned directly into `decimal.Decimal` from `github.com/shopspring/decimal`. The type implements `database/sql.Scanner` natively, eliminates floating-point representation issues, and marshals to JSON as a quoted string (`"50000.00"`) matching the wire format.
-
-### Per-IP token bucket rate limiting
-`golang.org/x/time/rate` provides a per-IP `rate.Limiter` stored in a `sync.Map`. This enforces the pickup-creation rate limit without an external dependency like Redis.
-
-### Background worker with context cancellation
-The `OrganicCanceler` worker uses `time.Ticker` and listens on a context, enabling clean shutdown via `context.WithCancel` coordinated by the main function's signal handler.
-
-### Business rules enforced in the service layer
-All 6 business rules (BR-01 through BR-06) live in the service layer, keeping handlers thin and repository implementations focused on data access only.
-
-### OpenTelemetry — vendor-neutral distributed tracing
-OTel was chosen over direct Jaeger/Zipkin SDKs so the trace backend can be swapped by changing the OTLP endpoint. `otelecho` middleware creates root HTTP spans automatically; each service, repository, worker, and storage function creates named child spans with domain attributes. Span enrichment in handlers uses `trace.SpanFromContext` (a no-op when no span is active) to add business attributes without creating duplicate spans.
-
-### Prometheus + Grafana — RED metrics with auto-provisioning
-`promauto` registers metrics at package init, eliminating the need to pass a registry through dependency injection. Metrics follow the RED pattern (Rate, Errors, Duration) for HTTP and database layers. Both Grafana dashboards and datasources are version-controlled in `deployments/grafana/` and auto-provisioned on container startup — no manual dashboard import required.
+| # | Decision |
+|---|----------|
+| [0001](docs/adr/0001-no-orm.md) | No ORM — raw SQL via `sqlx` |
+| [0002](docs/adr/0002-sentinel-errors.md) | Sentinel errors for domain outcomes |
+| [0003](docs/adr/0003-shopspring-decimal.md) | `shopspring/decimal` for monetary amounts |
+| [0004](docs/adr/0004-per-ip-rate-limit.md) | Per-IP token bucket rate limiting |
+| [0005](docs/adr/0005-worker-context-cancellation.md) | Background worker with context cancellation |
+| [0006](docs/adr/0006-business-rules-in-service-layer.md) | Business rules enforced in the service layer |
+| [0007](docs/adr/0007-opentelemetry.md) | OpenTelemetry — vendor-neutral distributed tracing |
+| [0008](docs/adr/0008-prometheus-red-metrics.md) | Prometheus + Grafana — RED metrics with auto-provisioning |

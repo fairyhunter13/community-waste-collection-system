@@ -39,6 +39,28 @@ func TestServeOpenAPISpec_Returns200YAML(t *testing.T) {
 	assert.NotEmpty(t, rec.Body.Bytes())
 }
 
+func TestHealthCheck_Returns200OK(t *testing.T) {
+	_, e := newTestHandler(t)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"status":"ok"`)
+}
+
+func TestReadyCheck_ReturnsUnreadyWhenDBNotConfigured(t *testing.T) {
+	_, e := newTestHandler(t)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"status":"unready"`)
+}
+
 func TestServeSwaggerUI_Returns200HTML(t *testing.T) {
 	_, e := newTestHandler(t)
 
