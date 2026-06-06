@@ -5,14 +5,18 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/config"
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
+	"github.com/fairyhunter13/community-waste-collection-system/internal/observability"
 )
 
 // s3API is the subset of aws-sdk-go-v2 s3.Client used by S3Client, enabling test injection.
@@ -56,12 +60,18 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 // EnsureBucket creates the configured bucket if it does not already exist.
 // Call this once at application startup.
 func (c *S3Client) EnsureBucket(ctx context.Context) error {
+	ctx, span := observability.Tracer().Start(ctx, "storage.s3.EnsureBucket")
+	defer span.End()
+	span.SetAttributes(attribute.String("s3.bucket", c.bucket))
+
 	_, err := c.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(c.bucket)})
 	if err == nil {
 		return nil
 	}
 	_, err = c.client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(c.bucket)})
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("create bucket %s: %w", c.bucket, err)
 	}
 	return nil
@@ -69,6 +79,16 @@ func (c *S3Client) EnsureBucket(ctx context.Context) error {
 
 // Upload uploads a file to S3-compatible storage and returns the object's public URL.
 func (c *S3Client) Upload(ctx context.Context, key string, r io.Reader, size int64, contentType string) (string, error) {
+	ctx, span := observability.Tracer().Start(ctx, "storage.s3.Upload")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("s3.bucket", c.bucket),
+		attribute.String("s3.key", key),
+		attribute.String("s3.content_type", contentType),
+		attribute.Int64("s3.size_bytes", size),
+	)
+
+	start := time.Now()
 	_, err := c.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(c.bucket),
 		Key:           aws.String(key),
@@ -76,8 +96,14 @@ func (c *S3Client) Upload(ctx context.Context, key string, r io.Reader, size int
 		ContentLength: aws.Int64(size),
 		ContentType:   aws.String(contentType),
 	})
+	observability.S3UploadDurationSeconds.Observe(time.Since(start).Seconds())
+
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		observability.S3ErrorsTotal.Inc()
 		return "", fmt.Errorf("s3 upload %s: %w", key, domain.ErrInternalFailure)
 	}
+	observability.S3UploadBytesTotal.Add(float64(size))
 	return fmt.Sprintf("%s/%s/%s", c.endpoint, c.bucket, key), nil
 }
