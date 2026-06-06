@@ -5,6 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
 )
@@ -15,6 +17,9 @@ func (h *Handler) CreateHousehold(c echo.Context) error {
 	if err := bindAndValidate(c, h.validate, &req); err != nil {
 		return err
 	}
+	trace.SpanFromContext(c.Request().Context()).SetAttributes(
+		attribute.String("household.owner_name", req.OwnerName),
+	)
 	household, err := h.householdSvc.Create(c.Request().Context(), req)
 	if err != nil {
 		return mapError(c, err)
@@ -25,6 +30,10 @@ func (h *Handler) CreateHousehold(c echo.Context) error {
 // ListHouseholds handles GET /api/households.
 func (h *Handler) ListHouseholds(c echo.Context) error {
 	page, perPage := paginationParams(c)
+	trace.SpanFromContext(c.Request().Context()).SetAttributes(
+		attribute.Int("pagination.page", page),
+		attribute.Int("pagination.per_page", perPage),
+	)
 	households, total, err := h.householdSvc.List(c.Request().Context(), page, perPage)
 	if err != nil {
 		return mapError(c, err)
@@ -38,6 +47,9 @@ func (h *Handler) GetHousehold(c echo.Context) error {
 	if err != nil {
 		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid household id")
 	}
+	trace.SpanFromContext(c.Request().Context()).SetAttributes(
+		attribute.String("household.id", id.String()),
+	)
 	household, err := h.householdSvc.GetByID(c.Request().Context(), id)
 	if err != nil {
 		return mapError(c, err)
@@ -51,6 +63,9 @@ func (h *Handler) DeleteHousehold(c echo.Context) error {
 	if err != nil {
 		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid household id")
 	}
+	trace.SpanFromContext(c.Request().Context()).SetAttributes(
+		attribute.String("household.id", id.String()),
+	)
 	if err := h.householdSvc.Delete(c.Request().Context(), id); err != nil {
 		return mapError(c, err)
 	}

@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
 )
@@ -17,6 +19,10 @@ func (h *Handler) CreatePayment(c echo.Context) error {
 	if err := bindAndValidate(c, h.validate, &req); err != nil {
 		return err
 	}
+	trace.SpanFromContext(c.Request().Context()).SetAttributes(
+		attribute.String("payment.household_id", req.HouseholdID.String()),
+		attribute.String("payment.waste_id", req.WasteID.String()),
+	)
 	payment, err := h.paymentSvc.Create(c.Request().Context(), req)
 	if err != nil {
 		return mapError(c, err)
@@ -29,18 +35,26 @@ func (h *Handler) ListPayments(c echo.Context) error {
 	page, perPage := paginationParams(c)
 	filter := domain.PaymentFilter{Page: page, PerPage: perPage}
 
+	span := trace.SpanFromContext(c.Request().Context())
+	span.SetAttributes(
+		attribute.Int("pagination.page", page),
+		attribute.Int("pagination.per_page", perPage),
+	)
+
 	if hid := c.QueryParam("household_id"); hid != "" {
 		id, err := uuid.Parse(hid)
 		if err != nil {
 			return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid household_id")
 		}
 		filter.HouseholdID = &id
+		span.SetAttributes(attribute.String("filter.household_id", id.String()))
 	}
 	if s := c.QueryParam("status"); s != "" {
 		status := domain.PaymentStatus(s)
 		switch status {
 		case domain.PaymentStatusPending, domain.PaymentStatusPaid, domain.PaymentStatusFailed:
 			filter.Status = &status
+			span.SetAttributes(attribute.String("filter.status", s))
 		default:
 			return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR",
 				"invalid status: must be pending, paid, or failed")
@@ -74,6 +88,9 @@ func (h *Handler) ConfirmPayment(c echo.Context) error {
 	if err != nil {
 		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid payment id")
 	}
+	trace.SpanFromContext(c.Request().Context()).SetAttributes(
+		attribute.String("payment.id", id.String()),
+	)
 
 	maxBytes := int64(h.cfg.MaxUploadSizeMB) << 20
 	c.Request().Body = http.MaxBytesReader(c.Response().Writer, c.Request().Body, maxBytes)
