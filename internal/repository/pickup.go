@@ -173,6 +173,10 @@ func (r *pickupRepo) List(ctx context.Context, filter domain.PickupFilter) ([]*d
 	return pickups, total, nil
 }
 
+// UpdateStatus transitions a pickup to the given status with a per-transition
+// predicate on the prior status. This makes the operation atomic against
+// concurrent writers (T25 race fix). If the predicate fails (e.g. another
+// caller already completed the pickup), ErrConflict is returned.
 func (r *pickupRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.PickupStatus, txs ...*sqlx.Tx) error {
 	ctx, span := observability.Tracer().Start(ctx, "repository.pickup.UpdateStatus")
 	span.SetAttributes(
@@ -185,12 +189,26 @@ func (r *pickupRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status doma
 	defer span.End()
 	start := time.Now()
 
-	const q = `UPDATE waste_pickups SET status = $1, updated_at = NOW() WHERE id = $2`
-	var err error
+	var q string
+	switch status {
+	case domain.PickupStatusCompleted:
+		q = `UPDATE waste_pickups SET status = $1, updated_at = NOW() WHERE id = $2 AND status = 'scheduled'`
+	case domain.PickupStatusCanceled:
+		q = `UPDATE waste_pickups SET status = $1, updated_at = NOW() WHERE id = $2 AND status IN ('pending','scheduled')`
+	case domain.PickupStatusScheduled:
+		q = `UPDATE waste_pickups SET status = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending'`
+	default:
+		q = `UPDATE waste_pickups SET status = $1, updated_at = NOW() WHERE id = $2`
+	}
+
+	var (
+		result sql.Result
+		err    error
+	)
 	if len(txs) > 0 && txs[0] != nil {
-		_, err = txs[0].ExecContext(ctx, q, status, id)
+		result, err = txs[0].ExecContext(ctx, q, status, id)
 	} else {
-		_, err = r.db.ExecContext(ctx, q, status, id)
+		result, err = r.db.ExecContext(ctx, q, status, id)
 	}
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "UPDATE").Observe(time.Since(start).Seconds())
 	if err != nil {
@@ -199,10 +217,19 @@ func (r *pickupRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status doma
 		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("update pickup status: %w", domain.ErrInternalFailure)
 	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		span.SetAttributes(attribute.Bool("race.lost", true))
+		span.SetStatus(codes.Error, "status transition race lost")
+		return fmt.Errorf("status transition conflict — pickup not in expected prior state: %w", domain.ErrConflict)
+	}
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
+// Schedule atomically transitions a pickup from pending → scheduled.
+// The WHERE clause includes status='pending' so concurrent callers cannot both
+// succeed (T24 race fix). Returns ErrConflict if the row is no longer pending.
 func (r *pickupRepo) Schedule(ctx context.Context, id uuid.UUID, date time.Time) error {
 	ctx, span := observability.Tracer().Start(ctx, "repository.pickup.Schedule")
 	span.SetAttributes(
@@ -214,8 +241,9 @@ func (r *pickupRepo) Schedule(ctx context.Context, id uuid.UUID, date time.Time)
 	defer span.End()
 	start := time.Now()
 
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE waste_pickups SET status = 'scheduled', pickup_date = $2, updated_at = NOW() WHERE id = $1`,
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE waste_pickups SET status = 'scheduled', pickup_date = $2, updated_at = NOW()
+		 WHERE id = $1 AND status = 'pending'`,
 		id, date,
 	)
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "UPDATE").Observe(time.Since(start).Seconds())
@@ -224,6 +252,12 @@ func (r *pickupRepo) Schedule(ctx context.Context, id uuid.UUID, date time.Time)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("schedule pickup: %w", domain.ErrInternalFailure)
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		span.SetAttributes(attribute.Bool("race.lost", true))
+		span.SetStatus(codes.Error, "schedule race lost")
+		return fmt.Errorf("schedule conflict — pickup no longer pending: %w", domain.ErrConflict)
 	}
 	span.SetStatus(codes.Ok, "")
 	return nil
