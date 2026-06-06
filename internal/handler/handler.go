@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
+	echomw "github.com/labstack/echo/v4/middleware"
 	"github.com/shopspring/decimal"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/config"
@@ -86,25 +87,34 @@ func New(
 
 // RegisterRoutes registers all API routes on the given Echo instance.
 func (h *Handler) RegisterRoutes(e *echo.Echo) {
+	e.Use(middleware.RequestID())
+	e.Use(echomw.Secure())
+
+	// JSON body cap for non-upload endpoints. The /confirm proof upload sits
+	// behind its own http.MaxBytesReader sized to cfg.MaxUploadSizeMB, so the
+	// global cap applies to the JSON write surface only.
+	jsonBodyLimit := echomw.BodyLimit("1M")
+
 	e.GET("/health", h.HealthCheck)
+	e.GET("/readyz", h.ReadyCheck)
 	e.GET("/api/docs/openapi.yaml", h.ServeOpenAPISpec)
 	e.GET("/api/docs", h.ServeSwaggerUI)
 
 	api := e.Group("/api")
 
-	api.POST("/households", h.CreateHousehold)
+	api.POST("/households", h.CreateHousehold, jsonBodyLimit)
 	api.GET("/households", h.ListHouseholds)
 	api.GET("/households/:id", h.GetHousehold)
 	api.DELETE("/households/:id", h.DeleteHousehold)
 
 	pickups := api.Group("/pickups")
-	pickups.POST("", h.CreatePickup, middleware.RateLimiter(h.cfg))
+	pickups.POST("", h.CreatePickup, middleware.RateLimiter(h.cfg), jsonBodyLimit)
 	pickups.GET("", h.ListPickups)
-	pickups.PUT("/:id/schedule", h.SchedulePickup)
+	pickups.PUT("/:id/schedule", h.SchedulePickup, jsonBodyLimit)
 	pickups.PUT("/:id/complete", h.CompletePickup)
 	pickups.PUT("/:id/cancel", h.CancelPickup)
 
-	api.POST("/payments", h.CreatePayment)
+	api.POST("/payments", h.CreatePayment, jsonBodyLimit)
 	api.GET("/payments", h.ListPayments)
 	api.PUT("/payments/:id/confirm", h.ConfirmPayment)
 
