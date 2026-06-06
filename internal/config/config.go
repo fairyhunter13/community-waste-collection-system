@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -18,6 +19,8 @@ type Config struct {
 	DBMaxOpenConns    int
 	DBMaxIdleConns    int
 	DBConnMaxIdleTime time.Duration
+	DBConnMaxLifetime time.Duration
+	DBApplicationName string
 
 	S3Endpoint     string
 	S3Bucket       string
@@ -41,6 +44,14 @@ type Config struct {
 
 	WorkerCancelInterval    time.Duration
 	WorkerOrganicCutoffDays int
+
+	HTTPReadHeaderTimeout time.Duration
+	HTTPReadTimeout       time.Duration
+	HTTPWriteTimeout      time.Duration
+	HTTPIdleTimeout       time.Duration
+
+	HTTPShutdownTimeout   time.Duration
+	WorkerShutdownTimeout time.Duration
 }
 
 // Load reads all configuration from environment variables, falling back to defaults.
@@ -55,6 +66,8 @@ func Load() *Config {
 		DBMaxOpenConns:    getEnvInt("DB_MAX_OPEN_CONNS", 25),
 		DBMaxIdleConns:    getEnvInt("DB_MAX_IDLE_CONNS", 10),
 		DBConnMaxIdleTime: getEnvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute),
+		DBConnMaxLifetime: getEnvDuration("DB_CONN_MAX_LIFETIME", 30*time.Minute),
+		DBApplicationName: getEnv("DB_APPLICATION_NAME", "waste-collection-api"),
 
 		S3Endpoint:     getEnv("S3_ENDPOINT", "http://localhost:9000"),
 		S3Bucket:       getEnv("S3_BUCKET", "waste-proofs"),
@@ -78,7 +91,49 @@ func Load() *Config {
 
 		WorkerCancelInterval:    getEnvDuration("WORKER_CANCEL_INTERVAL", time.Hour),
 		WorkerOrganicCutoffDays: getEnvInt("WORKER_ORGANIC_CUTOFF_DAYS", 3),
+
+		HTTPReadHeaderTimeout: getEnvDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
+		HTTPReadTimeout:       getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
+		HTTPWriteTimeout:      getEnvDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
+		HTTPIdleTimeout:       getEnvDuration("HTTP_IDLE_TIMEOUT", 60*time.Second),
+
+		HTTPShutdownTimeout:   getEnvDuration("HTTP_SHUTDOWN_TIMEOUT", 15*time.Second),
+		WorkerShutdownTimeout: getEnvDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
 	}
+}
+
+// Validate enforces invariants that, if violated, would silently break runtime
+// behaviour (BR-04 not firing, rate limiter rejecting all traffic, etc).
+// Callers should fail-fast on error rather than papering over a misconfig.
+func (c *Config) Validate() error {
+	if c.WorkerOrganicCutoffDays < 1 {
+		return fmt.Errorf("WORKER_ORGANIC_CUTOFF_DAYS must be >= 1 (got %d) — BR-04 would never trigger", c.WorkerOrganicCutoffDays)
+	}
+	if c.WorkerCancelInterval < time.Second {
+		return fmt.Errorf("WORKER_CANCEL_INTERVAL must be >= 1s (got %s) — tight loop would saturate the DB", c.WorkerCancelInterval)
+	}
+	if c.RateLimitRPS < 1 {
+		return fmt.Errorf("RATE_LIMIT_RPS must be >= 1 (got %g) — every request would be rejected", c.RateLimitRPS)
+	}
+	if c.RateLimitBurst < 1 {
+		return fmt.Errorf("RATE_LIMIT_BURST must be >= 1 (got %d)", c.RateLimitBurst)
+	}
+	if c.MaxUploadSizeMB < 1 {
+		return fmt.Errorf("MAX_UPLOAD_SIZE_MB must be >= 1 (got %d)", c.MaxUploadSizeMB)
+	}
+	if port, err := strconv.Atoi(c.AppPort); err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("APP_PORT must be a valid TCP port (got %q)", c.AppPort)
+	}
+	if c.DatabaseURL == "" {
+		return fmt.Errorf("DATABASE_URL must not be empty")
+	}
+	if c.DBMaxOpenConns < 1 {
+		return fmt.Errorf("DB_MAX_OPEN_CONNS must be >= 1 (got %d)", c.DBMaxOpenConns)
+	}
+	if c.DBMaxIdleConns < 0 {
+		return fmt.Errorf("DB_MAX_IDLE_CONNS must be >= 0 (got %d)", c.DBMaxIdleConns)
+	}
+	return nil
 }
 
 func getEnv(key, fallback string) string {
