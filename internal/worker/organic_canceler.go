@@ -47,9 +47,21 @@ func (w *OrganicCanceler) Start(ctx context.Context) {
 			w.logger.Info("organic canceler stopping")
 			return
 		case <-ticker.C:
-			w.run(ctx)
+			w.runWithRecover(ctx)
 		}
 	}
+}
+
+// runWithRecover wraps run with a deferred panic recover so a single failing
+// cycle does not kill the goroutine and silently stop BR-04 enforcement.
+func (w *OrganicCanceler) runWithRecover(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			w.logger.Error("organic canceler panic recovered", "panic", r)
+			observability.WorkerCyclesFailedTotal.Inc()
+		}
+	}()
+	w.run(ctx)
 }
 
 // run enforces BR-04: organic pickups not scheduled within the cutoff period are automatically cancelled.
