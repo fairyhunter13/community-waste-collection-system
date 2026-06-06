@@ -326,8 +326,11 @@ func (s *E2ESuite) TestPickup_CreateNonExistentHousehold() {
 }
 
 // TestPickup_BR01_MixedPayments_OnlyPendingBlocks confirms that BR-01 blocks
-// new pickups as long as any pending payment exists and unblocks only when all
-// pending payments for the household are confirmed.
+// new pickups while a pending payment exists and unblocks once it is confirmed,
+// even after an earlier paid payment exists for the same household. The
+// partial-unique index uq_payments_one_pending_per_household (migration 000004)
+// caps concurrent pending payments at one, so this test sequences them:
+// pay1 (pending → paid) then pay2 (pending → paid).
 func (s *E2ESuite) TestPickup_BR01_MixedPayments_OnlyPendingBlocks() {
 	var hResp map[string]any
 	resp := s.do(http.MethodPost, "/api/households", map[string]any{
@@ -338,26 +341,34 @@ func (s *E2ESuite) TestPickup_BR01_MixedPayments_OnlyPendingBlocks() {
 	s.decode(resp, &hResp)
 	householdID := hResp["data"].(map[string]any)["id"].(string)
 
-	// Create two pickups.
-	var p1Resp, p2Resp map[string]any
+	// First pickup + pending payment.
+	var p1Resp, pay1Resp map[string]any
 	r1 := s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "plastic"})
 	s.Require().Equal(http.StatusCreated, r1.StatusCode)
 	s.decode(r1, &p1Resp)
 	p1ID := p1Resp["data"].(map[string]any)["id"].(string)
 
-	r2 := s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "paper"})
-	s.Require().Equal(http.StatusCreated, r2.StatusCode)
-	s.decode(r2, &p2Resp)
-	p2ID := p2Resp["data"].(map[string]any)["id"].(string)
-
-	// Create a pending payment for each pickup directly.
-	var pay1Resp, pay2Resp map[string]any
 	r3 := s.do(http.MethodPost, "/api/payments", map[string]any{
 		"household_id": householdID, "waste_id": p1ID, "amount": "50000.00",
 	})
 	s.Require().Equal(http.StatusCreated, r3.StatusCode)
 	s.decode(r3, &pay1Resp)
 	pay1ID := pay1Resp["data"].(map[string]any)["id"].(string)
+
+	// BR-01 blocks new pickups while pay1 is pending.
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
+	s.Equal(http.StatusConflict, resp.StatusCode)
+	resp.Body.Close()
+
+	// Confirm pay1 → paid. Pending count = 0 ⇒ second pickup allowed.
+	s.confirmPayment(pay1ID)
+
+	// Second pickup + pending payment (paid payment from pay1 must NOT block).
+	var p2Resp, pay2Resp map[string]any
+	r2 := s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "paper"})
+	s.Require().Equal(http.StatusCreated, r2.StatusCode)
+	s.decode(r2, &p2Resp)
+	p2ID := p2Resp["data"].(map[string]any)["id"].(string)
 
 	r4 := s.do(http.MethodPost, "/api/payments", map[string]any{
 		"household_id": householdID, "waste_id": p2ID, "amount": "50000.00",
@@ -366,18 +377,12 @@ func (s *E2ESuite) TestPickup_BR01_MixedPayments_OnlyPendingBlocks() {
 	s.decode(r4, &pay2Resp)
 	pay2ID := pay2Resp["data"].(map[string]any)["id"].(string)
 
-	// New pickup blocked — two pending payments.
+	// BR-01 again blocks while pay2 is pending — even though pay1 is paid.
 	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
 	s.Equal(http.StatusConflict, resp.StatusCode)
 	resp.Body.Close()
 
-	// Confirm first payment — one pending payment remains, still blocked.
-	s.confirmPayment(pay1ID)
-	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
-	s.Equal(http.StatusConflict, resp.StatusCode)
-	resp.Body.Close()
-
-	// Confirm second payment — zero pending, new pickup must succeed.
+	// Confirm pay2 → paid. Pending count = 0 ⇒ third pickup must succeed.
 	s.confirmPayment(pay2ID)
 	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
 	s.Equal(http.StatusCreated, resp.StatusCode)
