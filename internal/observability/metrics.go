@@ -89,6 +89,27 @@ var WorkerExpiredFoundTotal = promauto.NewCounter(prometheus.CounterOpts{
 	Help: "Total expired organic pickups found by the worker.",
 })
 
+// --- S3 storage metrics ---
+
+// S3UploadDurationSeconds tracks the latency of S3 upload operations.
+var S3UploadDurationSeconds = promauto.NewHistogram(prometheus.HistogramOpts{
+	Name:    "s3_upload_duration_seconds",
+	Help:    "Duration of S3 upload operations in seconds.",
+	Buckets: []float64{.05, .1, .25, .5, 1, 2.5, 5},
+})
+
+// S3UploadBytesTotal counts total bytes uploaded to S3.
+var S3UploadBytesTotal = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "s3_upload_bytes_total",
+	Help: "Total bytes uploaded to S3.",
+})
+
+// S3ErrorsTotal counts total S3 operation errors.
+var S3ErrorsTotal = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "s3_errors_total",
+	Help: "Total S3 operation errors.",
+})
+
 // StartMetricsServer starts a Prometheus metrics HTTP server on the given addr (e.g. ":2112").
 func StartMetricsServer(addr string) (*http.Server, error) {
 	mux := http.NewServeMux()
