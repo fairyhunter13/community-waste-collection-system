@@ -61,6 +61,7 @@ type Handler struct {
 	reportSvc    domain.ReportService
 	validate     *validator.Validate
 	cfg          *config.Config
+	db           *sqlx.DB
 }
 
 // New creates a new Handler with all service dependencies wired.
@@ -79,11 +80,16 @@ func New(
 		reportSvc:    rSvc,
 		validate:     newValidator(db),
 		cfg:          cfg,
+		db:           db,
 	}
 }
 
 // RegisterRoutes registers all API routes on the given Echo instance.
 func (h *Handler) RegisterRoutes(e *echo.Echo) {
+	e.GET("/health", h.HealthCheck)
+	e.GET("/api/docs/openapi.yaml", h.ServeOpenAPISpec)
+	e.GET("/api/docs", h.ServeSwaggerUI)
+
 	api := e.Group("/api")
 
 	api.POST("/households", h.CreateHousehold)
