@@ -226,6 +226,9 @@ func (s *PickupRepoSuite) TestCancelIfCancellable_PendingPickup() {
 func (s *PickupRepoSuite) TestCancelIfCancellable_CompletedPickup() {
 	h := s.newHousehold()
 	p := s.newPickup(h.ID, domain.WasteTypeOrganic)
+	// Pickup must traverse pending → scheduled → completed (UpdateStatus is now
+	// conditional on the prior status — T25 race fix).
+	s.Require().NoError(s.repo.Schedule(s.T().Context(), p.ID, time.Now().Add(48*time.Hour)))
 	s.Require().NoError(s.repo.UpdateStatus(s.T().Context(), p.ID, domain.PickupStatusCompleted))
 
 	ok, err := s.repo.CancelIfCancellable(s.T().Context(), p.ID)
@@ -235,6 +238,31 @@ func (s *PickupRepoSuite) TestCancelIfCancellable_CompletedPickup() {
 	got, err := s.repo.FindByID(s.T().Context(), p.ID)
 	s.Require().NoError(err)
 	s.Equal(domain.PickupStatusCompleted, got.Status)
+}
+
+// TestSchedule_Race_RejectsSecondCaller proves the conditional UPDATE in
+// Schedule (T24) returns ErrConflict when the pickup is no longer pending.
+func (s *PickupRepoSuite) TestSchedule_Race_RejectsSecondCaller() {
+	h := s.newHousehold()
+	p := s.newPickup(h.ID, domain.WasteTypeOrganic)
+	date := time.Now().Add(48 * time.Hour)
+
+	s.Require().NoError(s.repo.Schedule(s.T().Context(), p.ID, date))
+	// Second Schedule call must fail with ErrConflict — pickup no longer pending.
+	err := s.repo.Schedule(s.T().Context(), p.ID, date)
+	s.Require().ErrorIs(err, domain.ErrConflict)
+}
+
+// TestUpdateStatus_Race_RejectsCompletedFromNonScheduled proves the conditional
+// UPDATE in UpdateStatus (T25) returns ErrConflict when the pickup is not
+// currently scheduled — guards against two parallel Complete callers.
+func (s *PickupRepoSuite) TestUpdateStatus_Race_RejectsCompletedFromNonScheduled() {
+	h := s.newHousehold()
+	p := s.newPickup(h.ID, domain.WasteTypeOrganic) // status=pending
+
+	// Attempting Complete on a pending (not scheduled) pickup must fail.
+	err := s.repo.UpdateStatus(s.T().Context(), p.ID, domain.PickupStatusCompleted)
+	s.Require().ErrorIs(err, domain.ErrConflict)
 }
 
 func (s *PickupRepoSuite) TestCancelIfCancellable_NonExistentID() {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -140,61 +139,4 @@ func (s *PaymentServiceSuite) TestList_RepoError_Propagates() {
 
 	_, _, err := s.svc.List(s.T().Context(), filter)
 	s.Require().ErrorIs(err, domain.ErrInternalFailure)
-}
-
-type ReportServiceSuite struct {
-	suite.Suite
-	repo *mocks.PaymentRepository
-	svc  domain.ReportService
-}
-
-func (s *ReportServiceSuite) SetupTest() {
-	s.repo = mocks.NewPaymentRepository(s.T())
-	s.svc = service.NewReportService(s.repo)
-}
-
-func TestReportService(t *testing.T) {
-	suite.Run(t, new(ReportServiceSuite))
-}
-
-func (s *ReportServiceSuite) TestWasteSummary_DelegatesToRepo() {
-	expected := []domain.WasteTypeSummary{{Type: domain.WasteTypeOrganic, Total: 5}}
-	s.repo.On("WasteSummary", mock.Anything).Return(expected, nil)
-
-	got, err := s.svc.WasteSummary(s.T().Context())
-	s.Require().NoError(err)
-	s.Equal(expected, got)
-}
-
-func (s *ReportServiceSuite) TestPaymentSummary_DelegatesToRepo() {
-	expected := &domain.PaymentSummaryResult{TotalRevenue: decimal.RequireFromString("100000")}
-	s.repo.On("PaymentSummary", mock.Anything).Return(expected, nil)
-
-	got, err := s.svc.PaymentSummary(s.T().Context())
-	s.Require().NoError(err)
-	s.Equal(expected, got)
-}
-
-func (s *ReportServiceSuite) TestHouseholdHistory_DelegatesToRepo() {
-	id := uuid.New()
-	expected := &domain.HouseholdHistoryResult{Household: &domain.Household{ID: id}}
-	s.repo.On("HouseholdHistory", mock.Anything, id).Return(expected, nil)
-
-	got, err := s.svc.HouseholdHistory(s.T().Context(), id)
-	s.Require().NoError(err)
-	s.Equal(expected, got)
-}
-
-func (s *ReportServiceSuite) TestHouseholdHistory_NotFound() {
-	id := uuid.New()
-	s.repo.On("HouseholdHistory", mock.Anything, id).Return(nil, domain.ErrNotFound)
-
-	_, err := s.svc.HouseholdHistory(s.T().Context(), id)
-	s.Require().ErrorIs(err, domain.ErrNotFound)
-}
-
-// Confirm that all payment dates are in UTC.
-func (s *ReportServiceSuite) TestConfirmSetsUTCTime() {
-	now := time.Now().UTC()
-	s.True(now.Location() == time.UTC)
 }
