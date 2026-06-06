@@ -63,7 +63,16 @@ type PaymentFilter struct {
 	PerPage     int
 }
 
-// PaymentRepository defines data access operations for payments.
+// PaymentRepository persists payment rows and serves report aggregations.
+//
+// Contract:
+//   - Create and CreateWithTx insert a payment row; the unique constraint on
+//     (waste_id) and the partial-unique index on (household_id) WHERE status='pending'
+//     defend BR-01 / BR-06 at the DB tier. Duplicate inserts surface [ErrConflict].
+//   - Confirm sets status='paid', payment_date=paidAt, proof_file_url=proofURL
+//     atomically; idempotent at the SQL layer (conditional on status='pending').
+//   - HouseholdHistory parallelises three queries via errgroup so wall-clock is
+//     a single RTT regardless of pickup/payment row counts.
 type PaymentRepository interface {
 	Create(ctx context.Context, p *Payment) error
 	CreateWithTx(ctx context.Context, tx *sqlx.Tx, p *Payment) error
@@ -75,7 +84,15 @@ type PaymentRepository interface {
 	HouseholdHistory(ctx context.Context, householdID uuid.UUID) (*HouseholdHistoryResult, error)
 }
 
-// PaymentService defines business operations for payments.
+// PaymentService is the business-rule entry point for payment operations.
+//
+// Create produces a pending payment for a completed pickup; Confirm uploads a
+// proof file to object storage and flips the row to paid. Confirm validates
+// the upload's Content-Type against an allowlist (image/jpeg, image/png,
+// application/pdf) and sniffs the magic bytes before persisting — the
+// client-supplied Content-Type is never trusted. All methods emit OTel spans
+// and map storage / repository errors into the [ErrValidation], [ErrNotFound],
+// and [ErrConflict] sentinels.
 type PaymentService interface {
 	Create(ctx context.Context, req CreatePaymentRequest) (*Payment, error)
 	List(ctx context.Context, filter PaymentFilter) ([]*Payment, int, error)

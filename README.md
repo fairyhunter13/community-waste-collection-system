@@ -650,6 +650,74 @@ the trace in Jaeger or vice versa:
 
 ---
 
+## Failure Modes
+
+How the system degrades when each upstream becomes unavailable, and how
+to recover.
+
+### PostgreSQL down
+
+- **Symptoms:** every write endpoint returns `500 INTERNAL_ERROR`;
+  `/readyz` returns `503` (the readiness probe pings the DB on every
+  request); the BR-04 worker logs `cycle failed: ...` and increments
+  `worker_cycles_failed_total`.
+- **What still works:** `/health` (liveness) and `/api/version` —
+  neither touches the DB. `/metrics` continues to scrape.
+- **Recovery:** restore Postgres → `/readyz` flips green within one
+  request; the worker self-heals on the next tick (no manual restart
+  needed). The HTTP server does not need to be bounced.
+
+### MinIO / S3 down
+
+- **Symptoms:** `PUT /api/payments/:id/confirm` fails with
+  `500 INTERNAL_ERROR` (the proof-file upload step errors out); all
+  other endpoints are unaffected.
+- **What still works:** every read path, household / pickup / payment
+  creation, and the BR-04 worker.
+- **Recovery:** restore MinIO and re-issue the confirmation request.
+  Idempotency on confirm is enforced via the conditional
+  `WHERE status='pending'` UPDATE, so retries are safe.
+
+### Worker goroutine dies
+
+- **Symptoms:** `worker_cycles_total` stops climbing; expired organic
+  pickups stop being auto-cancelled (BR-04 paused).
+- **Recovery:** Tier 6 added `recover()` around the worker loop body
+  so a panic now logs, increments `worker_cycles_failed_total`, and
+  the next tick continues. If the loop is permanently stuck, restart
+  the container; the worker resumes on boot.
+
+### OTel collector / Jaeger down
+
+- **Symptoms:** traces stop appearing in Jaeger; structured logs still
+  carry `trace_id` / `span_id` so the correlation field is preserved.
+- **What still works:** every HTTP and worker path. The OTel exporter
+  is best-effort and never blocks the request hot path.
+- **Recovery:** restore the collector; tracing resumes on the next
+  request. No application restart needed.
+
+### Prometheus / Grafana down
+
+- **Symptoms:** dashboards go blank; alerts stop firing.
+- **What still works:** the application itself is unaffected; metrics
+  continue to be exposed on `/metrics`.
+- **Recovery:** restart Prometheus; it back-fills from the application
+  scrape immediately.
+
+### Bounded-blast-radius guarantees
+
+- **Slow client / slow-loris:** `HTTP_READ_HEADER_TIMEOUT` (5s default)
+  and `HTTP_READ_TIMEOUT` (15s default) cap how long a half-open
+  request can hold a server worker.
+- **Oversized payload:** Echo `BodyLimit("1M")` on every JSON write
+  path; uploads cap separately via `MaxBytesReader` sized to
+  `MAX_UPLOAD_SIZE_MB`.
+- **Rate-limiter memory leak:** per-IP entries TTL out after 30 min
+  idle (background sweeper); current population exposed via
+  `rate_limit_active_clients`.
+
+---
+
 ## Architecture Decisions
 
 Eight ADRs document the load-bearing decisions in this codebase. They
