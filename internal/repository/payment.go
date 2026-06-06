@@ -197,22 +197,26 @@ func (r *paymentRepo) List(ctx context.Context, filter domain.PaymentFilter) ([]
 	if len(conds) > 0 {
 		where = "WHERE " + strings.Join(conds, " AND ")
 	}
-	args = append(args, perPage, (page-1)*perPage)
 
-	query := fmt.Sprintf(`
-		SELECT *, COUNT(*) OVER() AS total_count
-		FROM payments
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM payments %s`, where)
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, 0, fmt.Errorf("count payments: %w", domain.ErrInternalFailure)
+	}
+
+	args = append(args, perPage, (page-1)*perPage)
+	listQuery := fmt.Sprintf(`
+		SELECT * FROM payments
 		%s
 		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, where, n, n+1)
 
-	type paymentRow struct {
-		domain.Payment
-		TotalCount int `db:"total_count"`
-	}
-	var rows []paymentRow
-	err := r.db.SelectContext(ctx, &rows, query, args...)
+	var payments []*domain.Payment
+	err := r.db.SelectContext(ctx, &payments, listQuery, args...)
 	observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
@@ -221,14 +225,7 @@ func (r *paymentRepo) List(ctx context.Context, filter domain.PaymentFilter) ([]
 		return nil, 0, fmt.Errorf("list payments: %w", domain.ErrInternalFailure)
 	}
 
-	payments := make([]*domain.Payment, len(rows))
-	total := 0
-	for i, row := range rows {
-		p := row.Payment
-		payments[i] = &p
-		total = row.TotalCount
-	}
-	span.SetAttributes(attribute.Int("result.count", total))
+	span.SetAttributes(attribute.Int("result.count", len(payments)))
 	span.SetStatus(codes.Ok, "")
 	return payments, total, nil
 }

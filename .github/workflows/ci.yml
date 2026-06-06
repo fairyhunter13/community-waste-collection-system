@@ -128,11 +128,11 @@ jobs:
           echo "Total unit coverage: ${TOTAL}%"
 
           MIN=80
-          if awk "BEGIN { exit !($TOTAL < $MIN) }"; then
-            echo "FAIL: coverage ${TOTAL}% is below minimum ${MIN}%"
+          if awk "BEGIN { exit !($TOTAL > $MIN) }"; then
+            echo "FAIL: coverage ${TOTAL}% does not exceed minimum ${MIN}%"
             exit 1
           fi
-          echo "PASS: coverage threshold met (${TOTAL}% >= ${MIN}%)"
+          echo "PASS: coverage threshold met (${TOTAL}% > ${MIN}%)"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -145,7 +145,7 @@ jobs:
   e2e:
     name: End-to-End Tests
     runs-on: ubuntu-24.04
-    needs: [coverage-gate]
+    needs: [test-unit, test-integration]
     timeout-minutes: 20
     env:
       DOCKER_HOST: "unix:///var/run/docker.sock"
@@ -247,7 +247,7 @@ jobs:
   perf:
     name: Performance Tests
     runs-on: ubuntu-24.04
-    needs: [coverage-gate]
+    needs: [test-unit, test-integration]
     timeout-minutes: 30
     env:
       DOCKER_HOST: "unix:///var/run/docker.sock"
