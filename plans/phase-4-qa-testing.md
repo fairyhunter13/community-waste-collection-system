@@ -569,7 +569,51 @@ make coverage                              # open HTML report
 
 ---
 
-## 10. Test Quality Rules
+## 10. E2E Test Coverage Expansion (added Day 4–5)
+
+A second wave of tests was added to close gaps in edge-case and complex-scenario coverage.
+
+### New E2E tests (16)
+
+| File | Test | Scenario |
+|---|---|---|
+| pickup_test.go | `TestPickup_BR01_MixedPayments_OnlyPendingBlocks` | Two pending payments; confirm one → still 409; confirm both → 201 |
+| pickup_test.go | `TestPickup_BR02_ScheduleCompleted_Fails` | Reschedule completed pickup → 409 |
+| pickup_test.go | `TestPickup_BR02_ScheduleCanceled_Fails` | Schedule canceled pickup → 409 |
+| pickup_test.go | `TestPickup_ScheduleNonExistent_404` | Non-existent ID → 404 |
+| pickup_test.go | `TestPickup_CompleteNonExistent_404` | Non-existent ID → 404 |
+| pickup_test.go | `TestPickup_CancelNonExistent_404` | Non-existent ID → 404 |
+| pickup_test.go | `TestPickup_ListEmpty_Returns200EmptyData` | Empty household → 200 empty array |
+| worker_test.go | `TestOrganicWorker_BR04_DoesNotCancelNonOrganic` | Aged plastic stays pending |
+| payment_test.go | `TestPickup_CompletePaper_PaymentAmount50000` | Paper type → 50 000 |
+| payment_test.go | `TestPickup_CompletePlastic_PaymentAmount50000` | Plastic type → 50 000 |
+| payment_test.go | `TestPayment_FilterByAllThree_StatusHouseholdDateRange` | All three filters combined |
+| household_test.go | `TestHousehold_DeleteCascades_PickupsAndPayments` | Cascade delete verified |
+| household_test.go | `TestHousehold_Pagination_EmptyPage` | Page 999 → 200 empty |
+| report_test.go | `TestWasteSummary_CanceledPickupsIncluded` | Canceled status appears in summary |
+| report_test.go | `TestPaymentSummary_TotalRevenueOnlyIncludesPaid` | Revenue excludes pending/failed |
+| report_test.go | `TestHouseholdHistory_NoPickupsNoPayments` | New household → empty arrays |
+
+### New integration tests (5)
+
+| File | Test | Scenario |
+|---|---|---|
+| pickup_test.go | `TestFindExpiredOrganic_OnlyExpiredPendingOrganic` | Scheduled organic and non-organic excluded |
+| payment_test.go | `TestList_AllThreeFilters_Combined` | Status + household + date range intersection |
+| payment_test.go | `TestPaymentSummary_AllStatuses` | pending/paid/failed all present; revenue = paid only |
+| payment_test.go | `TestList_DateRange_NoMatches_ReturnsEmpty` | Future date range → empty without error |
+| household_test.go | `TestList_PerPageLargerThanTotal` | per_page > total → all on page 1, empty page 2 |
+
+### E2E Lessons Learned
+
+- **confirmPayment helper**: Extracted multipart file upload to a `confirmPayment(paymentID string)` suite method in `suite_test.go` to avoid repetition across payment and pickup tests.
+- **Non-existent ID assertions**: Schedule/complete/cancel with `00000000-0000-0000-0000-000000000001` return 404 (service calls `FindByID` first).
+- **Cascade delete**: Pickup and payment list endpoints return 200 empty after household deletion — the filter query returns zero rows rather than an error.
+- **Worker non-organic test**: Uses `time.Sleep(7s)` with `WORKER_CANCEL_INTERVAL=5s` in CI, same pattern as the existing auto-cancel test.
+
+---
+
+## 11. Test Quality Rules
 
 - **No `time.Sleep` in tests** — use testcontainers wait strategies or `testing/synctest` (Go 1.25). Exception: E2E worker tests that observe async background behaviour (e.g., the organic auto-cancel worker) may use `time.Sleep` with a safety margin when no deterministic wait mechanism exists.
 - **No shared mutable state** between tests — each test is fully isolated via `TearDownTest` truncation
