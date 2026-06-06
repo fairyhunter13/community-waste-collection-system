@@ -34,7 +34,12 @@ type HouseholdHistoryResult struct {
 	Payments  []*Payment     `json:"payments"`
 }
 
-// ReportService defines operations for generating aggregated reports.
+// ReportService produces read-only aggregations over the operational tables.
+//
+// Implementations are pure read paths: each method emits one OTel span and
+// delegates to the repository's aggregate queries. HouseholdHistory returns
+// [ErrNotFound] when the household does not exist; the other two never fail
+// for missing data (they return empty slices / zero revenue instead).
 type ReportService interface {
 	WasteSummary(ctx context.Context) ([]WasteTypeSummary, error)
 	PaymentSummary(ctx context.Context) (*PaymentSummaryResult, error)

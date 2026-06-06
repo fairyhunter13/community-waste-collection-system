@@ -71,7 +71,19 @@ type PickupFilter struct {
 	PerPage     int
 }
 
-// PickupRepository defines data access operations for waste pickups.
+// PickupRepository persists pickup rows and enforces row-level integrity for
+// the lifecycle state machine (pending → scheduled → completed/canceled).
+//
+// Contract:
+//   - Schedule, UpdateStatus, and CancelIfCancellable use conditional UPDATEs
+//     (status predicate in the WHERE clause). When the row is in the wrong
+//     state, RowsAffected==0 and callers must surface [ErrConflict].
+//   - Create participates in the BR-01 advisory-lock flow; callers acquire
+//     pg_advisory_xact_lock keyed on household_id before invoking.
+//   - HasPendingPaymentForHousehold is the BR-01 check; the partial unique
+//     index on payments backs it at the DB tier.
+//   - FindExpiredOrganic + BulkCancel power the BR-04 worker; both are safe to
+//     call concurrently and use SKIP LOCKED semantics where required.
 type PickupRepository interface {
 	Create(ctx context.Context, p *WastePickup) error
 	FindByID(ctx context.Context, id uuid.UUID) (*WastePickup, error)
@@ -86,7 +98,13 @@ type PickupRepository interface {
 	CancelIfCancellable(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
-// PickupService defines business operations for waste pickups.
+// PickupService orchestrates the pickup lifecycle and enforces BR-01..BR-05.
+//
+// Each method emits an OTel span; Create wraps the BR-01 advisory-lock + insert
+// in a single transaction; Complete uses SELECT … FOR UPDATE on the pickup row
+// inside the BR-05 atomic transaction (status update + payment insert).
+// Conflicts on stale state map to [ErrConflict]; business-rule violations to
+// [ErrBusinessRule]; unknown IDs to [ErrNotFound].
 type PickupService interface {
 	Create(ctx context.Context, req CreatePickupRequest) (*WastePickup, error)
 	List(ctx context.Context, filter PickupFilter) ([]*WastePickup, int, error)
