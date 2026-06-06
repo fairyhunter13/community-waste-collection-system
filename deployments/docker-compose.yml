@@ -72,8 +72,6 @@ services:
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    depends_on:
-      - jaeger
 
   jaeger:
     image: jaegertracing/all-in-one:1.60
