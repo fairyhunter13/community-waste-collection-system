@@ -10,6 +10,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"testing"
 
@@ -82,17 +83,35 @@ func pathf(format string, args ...any) string {
 	return fmt.Sprintf(format, args...)
 }
 
+// jpegProofBody builds a multipart body carrying a single "proof" part whose
+// part-level Content-Type header is image/jpeg. mime/multipart.CreateFormFile
+// would emit application/octet-stream, which the handler's allowlist rejects.
+func jpegProofBody() (body *bytes.Buffer, contentType string, err error) {
+	body = &bytes.Buffer{}
+	mw := multipart.NewWriter(body)
+	hdr := textproto.MIMEHeader{}
+	hdr.Set("Content-Disposition", `form-data; name="proof"; filename="receipt.jpg"`)
+	hdr.Set("Content-Type", "image/jpeg")
+	part, err := mw.CreatePart(hdr)
+	if err != nil {
+		return nil, "", err
+	}
+	if _, err = part.Write([]byte("fake-jpeg-data")); err != nil {
+		return nil, "", err
+	}
+	if err = mw.Close(); err != nil {
+		return nil, "", err
+	}
+	return body, mw.FormDataContentType(), nil
+}
+
 // confirmPayment confirms a payment by uploading a fake proof file.
 func (s *E2ESuite) confirmPayment(paymentID string) {
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	part, err := mw.CreateFormFile("proof", "receipt.jpg")
+	body, contentType, err := jpegProofBody()
 	s.Require().NoError(err)
-	_, _ = part.Write([]byte("fake-jpeg-data"))
-	mw.Close()
-	req, err := http.NewRequest(http.MethodPut, s.baseURL+pathf("/api/payments/%s/confirm", paymentID), &buf)
+	req, err := http.NewRequest(http.MethodPut, s.baseURL+pathf("/api/payments/%s/confirm", paymentID), body)
 	s.Require().NoError(err)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Content-Type", contentType)
 	resp, err := s.client.Do(req)
 	s.Require().NoError(err)
 	resp.Body.Close()

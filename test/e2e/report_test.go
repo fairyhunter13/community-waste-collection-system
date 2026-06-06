@@ -3,9 +3,7 @@
 package e2e_test
 
 import (
-	"bytes"
 	"fmt"
-	"mime/multipart"
 	"net/http"
 	"time"
 )
@@ -121,16 +119,11 @@ func (s *E2ESuite) TestPaymentSummary_WithData() {
 	s.Require().NotEmpty(payments)
 	paymentID := payments[0].(map[string]any)["id"].(string)
 
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	part, err := mw.CreateFormFile("proof", "receipt.jpg")
+	body, contentType, err := jpegProofBody()
 	s.Require().NoError(err)
-	_, err = part.Write([]byte("fake-jpeg-data"))
+	req, err := http.NewRequest(http.MethodPut, s.baseURL+pathf("/api/payments/%s/confirm", paymentID), body)
 	s.Require().NoError(err)
-	mw.Close()
-	req, err := http.NewRequest(http.MethodPut, s.baseURL+pathf("/api/payments/%s/confirm", paymentID), &buf)
-	s.Require().NoError(err)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Content-Type", contentType)
 	confirmResp, err := s.client.Do(req)
 	s.Require().NoError(err)
 	confirmResp.Body.Close()
