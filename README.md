@@ -14,12 +14,12 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker.
 
 - **16 REST endpoints** across households, pickups, payments, and reports
 - **6 business rules** enforced in the service layer:
-  - BR-01 — Household can only have one pending/scheduled pickup per waste type
+  - BR-01 — A household with any pending payment cannot create a new pickup
   - BR-02 — Only pending pickups can be scheduled; only scheduled can be completed or cancelled
   - BR-03 — Electronic waste pickup requires a `safety_check: true` flag
   - BR-04 — Organic pickups with no scheduled date for 3 days are auto-cancelled by a background worker
-  - BR-05 — Payment confirmation requires a multipart proof-of-payment file upload
-  - BR-06 — Completing a pickup auto-generates a payment record at the confirmed amount
+  - BR-05 — Completing a pickup atomically auto-generates a payment record at the confirmed amount
+  - BR-06 — Payment confirmation requires a multipart proof-of-payment file upload
 - **Per-IP rate limiting** on pickup creation (5 req/s, burst 10) via token bucket
 - **Full-stack observability**: structured JSON logs (slog), distributed tracing (OTel → Jaeger), 14 Prometheus metrics, 2 auto-provisioned Grafana dashboards
 - **Test coverage >80%** enforced in CI; integration tests use real PostgreSQL via testcontainers
@@ -156,8 +156,8 @@ curl -s "http://localhost:8080/api/reports/households/$HH_ID/history" | jq .
 |---|---|---|
 | `400` | `VALIDATION_ERROR` | Missing required field, invalid enum value, past pickup date, malformed UUID |
 | `404` | `NOT_FOUND` | Resource ID does not exist in the database |
-| `409` | `CONFLICT` | BR-01 (duplicate pending pickup for same type) |
-| `422` | `BUSINESS_RULE_VIOLATION` | BR-02 (wrong status transition), BR-03 (electronic without safety_check), BR-06 violation |
+| `409` | `CONFLICT` | BR-01 (household has a pending payment), BR-02 (wrong pickup status for operation) |
+| `422` | `BUSINESS_RULE_VIOLATION` | BR-03 (electronic without safety_check), BR-06 (confirm without proof file) |
 | `429` | `RATE_LIMITED` | More than 5 pickup creation requests per second from the same IP |
 | `500` | `INTERNAL_ERROR` | Unexpected server-side error |
 | `503` | `service unavailable` | Health check: database unreachable |
