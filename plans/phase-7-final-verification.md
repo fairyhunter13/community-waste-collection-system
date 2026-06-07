@@ -13,66 +13,69 @@
 
 ## 1. Spec Compliance Matrix
 
-Three sub-matrices: endpoints (16), business rules (6), tech requirements (6).
+Four sub-matrices: endpoints (16), business rules (6), tech requirements (6), deliverables (5).
 Each row links the spec item to its implementation file and the test that
 proves it. Status legend: ✅ implemented + tested · ⚠️ implemented, partial
 test · ❌ missing.
 
-### 1.1 Endpoints (16)
+### Endpoints (16/16)
 
-| # | Method + Path | Handler file | Service file | Unit test | E2E test | Status |
-|---|---|---|---|---|---|---|
-| 1 | `POST /api/households` | `internal/handler/household.go` | `internal/service/household.go` | `internal/handler/household_test.go`, `internal/service/household_test.go` | `test/e2e/household_test.go` | ✅ |
-| 2 | `GET /api/households` | `internal/handler/household.go` | `internal/service/household.go` | `internal/handler/household_test.go` | `test/e2e/household_test.go` | ✅ |
-| 3 | `GET /api/households/:id` | `internal/handler/household.go` | `internal/service/household.go` | `internal/handler/household_test.go` | `test/e2e/household_test.go` | ✅ |
-| 4 | `DELETE /api/households/:id` | `internal/handler/household.go` | `internal/service/household.go` | `internal/handler/household_test.go` | `test/e2e/household_test.go` (incl. cascade after T4) | ✅ |
-| 5 | `POST /api/pickups` | `internal/handler/pickup.go` | `internal/service/pickup.go` | `internal/handler/pickup_test.go`, `internal/service/pickup_test.go` | `test/e2e/pickup_test.go` | ✅ |
-| 6 | `GET /api/pickups` | `internal/handler/pickup.go` | `internal/service/pickup.go` | `internal/handler/pickup_test.go` | `test/e2e/pickup_test.go` | ✅ |
-| 7 | `GET /api/pickups/:id` | `internal/handler/pickup.go` | `internal/service/pickup.go` | `internal/handler/pickup_test.go` | `test/e2e/pickup_test.go` | ✅ |
-| 8 | `PUT /api/pickups/:id/schedule` | `internal/handler/pickup.go` | `internal/service/pickup.go` | `internal/handler/pickup_test.go`, `internal/service/pickup_test.go` | `test/e2e/pickup_test.go` (incl. concurrent after T26) | ✅ |
-| 9 | `PUT /api/pickups/:id/complete` | `internal/handler/pickup.go` | `internal/service/pickup.go` | `internal/handler/pickup_test.go`, `internal/service/pickup_test.go` | `test/e2e/pickup_test.go` (incl. concurrent + idempotency after T3/T26) | ✅ |
-| 10 | `PUT /api/pickups/:id/cancel` | `internal/handler/pickup.go` | `internal/service/pickup.go` | `internal/handler/pickup_test.go`, `internal/service/pickup_test.go` | `test/e2e/pickup_test.go` | ✅ |
-| 11 | `POST /api/payments` | `internal/handler/payment.go` | `internal/service/payment.go` | `internal/handler/payment_test.go`, `internal/service/payment_test.go` | `test/e2e/payment_test.go` | ✅ |
-| 12 | `PUT /api/payments/:id/confirm` | `internal/handler/payment.go` | `internal/service/payment.go` | `internal/handler/payment_test.go`, `internal/service/payment_test.go` | `test/e2e/payment_test.go` | ✅ |
-| 13 | `GET /api/payments` | `internal/handler/payment.go` | `internal/service/payment.go` | `internal/handler/payment_test.go` | `test/e2e/payment_test.go` (incl. date_from/date_to after T5) | ✅ |
-| 14 | `GET /api/reports/waste-summary` | `internal/handler/report.go` | `internal/service/report.go` | `internal/handler/report_test.go`, `internal/service/report_test.go` (after T1) | `test/e2e/report_test.go` | ✅ |
-| 15 | `GET /api/reports/payments-summary` | `internal/handler/report.go` | `internal/service/report.go` | `internal/handler/report_test.go`, `internal/service/report_test.go` (after T1) | `test/e2e/report_test.go` | ✅ |
-| 16 | `GET /api/reports/households/:id/history` | `internal/handler/report.go` | `internal/service/report.go` | `internal/handler/report_test.go`, `internal/service/report_test.go` (after T1) | `test/e2e/report_test.go` | ✅ |
-| + | `GET /health` (liveness) | `internal/handler/health.go` | — | `internal/handler/misc_test.go` | implicit | ✅ |
-| + | `GET /readyz` (readiness, after T9) | `internal/handler/handler.go` | — | `internal/handler/misc_test.go` (after T9) | smoke | ✅ |
-| + | `GET /api/version` (after T48) | `internal/handler/handler.go` | — | `internal/handler/misc_test.go` (after T48) | smoke | ✅ |
-| + | `GET /api/docs` / `/openapi.yaml` | `internal/handler/docs.go` | — | manual | manual | ✅ |
-| + | `GET /metrics` (Prometheus) | wired via `promhttp.Handler` | — | smoke | smoke | ✅ |
+| Method | Path | Handler | OpenAPI Tag | Postman Request | E2E Test | Status |
+|--------|------|---------|-------------|-----------------|----------|--------|
+| POST | /api/households | `internal/handler/household.go` CreateHousehold | Household | Create Household | TestHouseholds Create | ✅ |
+| GET | /api/households | `internal/handler/household.go` ListHouseholds | Household | List Households | TestHouseholds List | ✅ |
+| GET | /api/households/:id | `internal/handler/household.go` GetHousehold | Household | Get Household | TestHouseholds GetByID | ✅ |
+| DELETE | /api/households/:id | `internal/handler/household.go` DeleteHousehold | Household | Delete Household | TestHouseholds DeleteCascade | ✅ |
+| POST | /api/pickups | `internal/handler/pickup.go` CreatePickup | Pickup | Create Pickup | TestPickups Create | ✅ |
+| GET | /api/pickups | `internal/handler/pickup.go` ListPickups | Pickup | List Pickups | TestPickups List | ✅ |
+| PUT | /api/pickups/:id/schedule | `internal/handler/pickup.go` SchedulePickup | Pickup | Schedule Pickup | TestPickups Schedule | ✅ |
+| PUT | /api/pickups/:id/complete | `internal/handler/pickup.go` CompletePickup | Pickup | Complete Pickup | TestPickups Complete | ✅ |
+| PUT | /api/pickups/:id/cancel | `internal/handler/pickup.go` CancelPickup | Pickup | Cancel Pickup | TestPickups Cancel | ✅ |
+| POST | /api/payments | `internal/handler/payment.go` CreatePayment | Payment | Create Payment | TestPayments Create | ✅ |
+| GET | /api/payments | `internal/handler/payment.go` ListPayments | Payment | List Payments | TestPayments List | ✅ |
+| PUT | /api/payments/:id/confirm | `internal/handler/payment.go` ConfirmPayment | Payment | Confirm Payment | TestPayments ConfirmUpload | ✅ |
+| GET | /api/reports/waste-summary | `internal/handler/report.go` WasteSummary | Reporting | Waste Summary | TestReports WasteSummary | ✅ |
+| GET | /api/reports/payment-summary | `internal/handler/report.go` PaymentSummary | Reporting | Payment Summary | TestReports PaymentSummary | ✅ |
+| GET | /api/reports/households/:id/history | `internal/handler/report.go` HouseholdHistory | Reporting | Household History | TestReports HouseholdHistory | ✅ |
+| GET | /health | `internal/handler/misc.go` HealthCheck | — | Health Check | TestMisc Health | ✅ |
 
-> 16 spec endpoints + 5 supporting endpoints (health, readyz, version, docs,
-> metrics). All exercised by Postman/Newman in the `contract` CI job after T13.
+### Business Rules (6/6)
 
-### 1.2 Business Rules (6)
+| BR | Wording | Implementation | Unit Test | E2E Test | DB Enforcement | Status |
+|----|---------|----------------|-----------|----------|----------------|--------|
+| BR-01 | No new pickup if household has a pending payment | `internal/service/pickup.go` Create: advisory lock + `HasPendingPaymentForHousehold` | `TestPickupService_Create_PendingPayment_Rejected` | `TestPickups_BR01_PendingPayment_Blocks` | Partial UNIQUE index `uq_payments_one_pending_per_household` | ✅ |
+| BR-02 | Schedule only if status is pending | `internal/repository/pickup.go` Schedule: conditional `UPDATE … WHERE status='pending'`; `RowsAffected==0` → `ErrConflict` | `TestPickupService_Schedule_WrongStatus` | `TestPickups_BR02_ScheduleAlreadyScheduled` | Conditional UPDATE | ✅ |
+| BR-03 | Electronic pickup requires safety_check=true before scheduling | `internal/service/pickup.go` Schedule: checks `pickup.Type==electronic && !pickup.SafetyCheck` | `TestPickupService_Schedule_ElectronicNoSafetyCheck` | `TestPickups_BR03_Electronic_SafetyCheck` | — (app tier) | ✅ |
+| BR-04 | Organic auto-canceled after 3 days via goroutine | `internal/worker/organic_canceler.go`: ticker + `FindExpiredOrganic` + `BulkCancel`; clean shutdown via context cancellation | `TestOrganicCanceler_CancelsExpired` / `_DBError` | `TestWorker_OrganicAutoCancel` | — (app tier) | ✅ |
+| BR-05 | Complete pickup → auto-generate payment (50000 / 100000) | `internal/service/pickup.go` Complete: `SELECT FOR UPDATE` + `UpdateStatus` + `CreatePayment` in single tx | `TestPickupService_Complete_CreatesPayment` / idempotency test | `TestPickups_BR05_Complete_AutoPayment` | `UNIQUE(waste_id)` on payments | ✅ |
+| BR-06 | Payment confirmation requires S3 proof upload | `internal/handler/payment.go` ConfirmPayment: MIME allowlist + magic-byte sniff + MinIO upload; URL saved to `proof_file_url` | `TestConfirmPayment_*` | `TestPayments_ConfirmWithProof` | — (app tier) | ✅ |
 
-| BR | Description | Implementation | Test (E2E proves invariant) | Status |
-|---|---|---|---|---|
-| BR-01 | A household with any **pending payment** cannot create a new pickup. Atomicity hardened with advisory lock (T23) + partial UNIQUE index (T27). | `internal/service/pickup.go` (Create — `HasPendingPaymentForHousehold` + advisory lock); `migrations/000004_unique_open_payment.up.sql` (after T27) | `test/e2e/pickup_test.go` (Create rejects when pending); `test/e2e/concurrency_test.go` (after T26 — parallel creators race-test) | ✅ |
-| BR-02 | A pickup can only be **scheduled** if it is currently `pending`. Hardened with conditional `UPDATE … WHERE status='pending'` checking RowsAffected (T24). | `internal/service/pickup.go` (Schedule); `internal/repository/pickup.go` (conditional UPDATE) | `test/e2e/pickup_test.go` (Schedule rejects non-pending); `test/e2e/concurrency_test.go` (after T26 — parallel scheduler race-test) | ✅ |
-| BR-03 | **Electronic** waste pickups must have safety information (handler validation). | `internal/handler/pickup.go` (validator binding `required_if=Type electronic`); `internal/domain/pickup.go` (`SafetyInfo *string`) | `test/e2e/pickup_test.go` (Create electronic without safety_info → 422) | ✅ |
-| BR-04 | A pickup of type `organic` left in `pending` for **3 days** (configurable) is automatically canceled by a background worker. | `internal/worker/organic_canceler.go`; configurable via `WORKER_ORGANIC_CUTOFF_DAYS` | `test/e2e/worker_test.go` (insert pending organic with `created_at - 4d` → run cycle → status=canceled); `internal/worker/organic_canceler_test.go` (after T6 — DB-error durability) | ✅ |
-| BR-05 | Completing a pickup **atomically** updates pickup status AND creates a payment with the right amount per waste type. Hardened with `SELECT … FOR UPDATE` (T25) + conditional UPDATE (T24). | `internal/service/pickup.go` (Complete: tx of UpdateStatus + CreatePayment); `internal/domain/pickup.go` (Amount(): organic 50000, others 100000); `internal/repository/pickup.go` (`FindByIDTxForUpdate` after T25) | `test/e2e/pickup_test.go` (Complete creates pending payment with correct amount); `test/e2e/concurrency_test.go` (after T26 — 8 parallel Completes → 1 OK + 7 conflicts + 1 payment row) | ✅ |
-| BR-06 | Confirming payment requires a **proof file upload**; without a file the request must fail (validation, not auth). File is stored to MinIO; mime-type validated (T34). | `internal/service/payment.go` (Confirm — nil reader → ErrValidation); `internal/handler/payment.go` (FormFile + body limit + MIME sniff after T34) | `test/e2e/payment_test.go` (Confirm without file → 422; Confirm with file → 200, proof URL present); `internal/service/payment_test.go` (BR-06 unit) | ✅ |
+### Technical Requirements (6/6)
 
-### 1.3 Tech Requirements (6)
+| # | Requirement | Implementation | Evidence |
+|---|-------------|----------------|----------|
+| TR-1 | Dependency injection | Constructor wiring in `cmd/api/main.go`; every component receives interfaces from `internal/domain/` | `internal/mocks/` generated from domain interfaces; all unit tests use mock implementations |
+| TR-2 | Graceful shutdown | OS signal handler in `cmd/api/main.go`; `e.Shutdown(ctx)` + `worker.Stop()` + `wg.Wait()`; configurable via `HTTP_SHUTDOWN_TIMEOUT` / `WORKER_SHUTDOWN_TIMEOUT` | `test/integration/shutdown_test.go` |
+| TR-3 | Rate limiting on pickup creation | `internal/middleware/ratelimit.go`: per-IP token bucket on `POST /api/pickups`; TTL eviction for idle entries; `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST` env vars | E2E asserts 429 on burst; `rate_limit_active_clients` Prometheus gauge |
+| TR-4 | Docker + PostgreSQL, single command to run | `make docker-up` (`docker compose -f deployments/docker-compose.yml up -d`) boots app + postgres + minio + jaeger + otel-collector + prometheus + grafana + loki + promtail | README §Setup |
+| TR-5 | Consistent API responses | Envelope `{success:bool, data?, error:{code,message}, meta?}` returned by every handler; `respondError` now enriches with `{request_id, trace_id, span_id}` | `internal/handler/error_envelope_test.go` |
+| TR-6 | Input validation | `validator/v10` with custom `db_exists_household` / `db_exists_pickup` ctx-aware tags; `positive_decimal` tag; field-level unit tests | `internal/handler/*_test.go` |
 
-| TR | Requirement | Where | Test / Evidence | Status |
-|---|---|---|---|---|
-| TR-1 | Dependency Injection — constructor wiring, no global state | `cmd/api/main.go` (all interfaces wired top-down) | `go test ./... -race` (no global state racy access); `go vet` clean | ✅ |
-| TR-2 | Graceful Shutdown — signal handler, in-flight requests drain, worker stops | `cmd/api/main.go` (SIGTERM → `srv.Shutdown(ctx)` + `wg.Wait()`); split timeouts after T41 | `test/integration/shutdown_test.go` (after T7 — start request, send SIGTERM, confirm completion + worker drain); manual `docker-compose down` SIGTERM smoke | ✅ |
-| TR-3 | Rate Limiting — per-IP throttle on `POST /api/pickups` | `internal/middleware/ratelimit.go` (token bucket); TTL eviction after T30 | `test/e2e/pickup_test.go` (TestRateLimit_RejectsBurst); `rate_limit_active_clients` gauge (after T30) | ✅ |
-| TR-4 | Single-command Docker Compose — `docker compose up -d` boots full stack | `deployments/docker-compose.yml` (app, postgres, minio, prometheus, grafana, jaeger, otel-collector + loki/promtail after T18) | `make docker-up` from clean clone (manual); CI `e2e` job runs against the compose stack | ✅ |
-| TR-5 | Consistent Response Envelope — `{success, data, error, meta}` | `internal/handler/handler.go` (`writeJSON`, `writeError`); `internal/domain/envelope.go` | `internal/handler/error_envelope_test.go` (after T16 — table-driven across all endpoints) | ✅ |
-| TR-6 | Input Validation — validator/v10 + custom `db_exists_*` validators | `internal/handler/validate.go`; binders per handler | `internal/handler/*_test.go` (returns 422 with `error.details[]`); `error_envelope_test.go` (T16) | ✅ |
+### Deliverables (5/5)
 
-> All 6 tech requirements satisfied. Observability (Prometheus, Grafana, Jaeger,
-> OTel + Loki after T18) and rich quality gates (golangci-lint v2.12.2, 80%
-> coverage gate, `-race` everywhere, testcontainers, full-stack E2E) are
-> **beyond-spec** and form the primary differentiation.
+| # | Deliverable | Artefact | Status |
+|---|-------------|----------|--------|
+| D-1 | Go project with PostgreSQL via Docker | `make docker-up` in < 2 minutes; `/health` returns 200 | ✅ |
+| D-2 | Source code with chosen structure | `cmd/`, `internal/{handler,service,repository,domain,middleware,observability,worker,storage,config}` — documented in 8 ADRs under `docs/adr/` | ✅ |
+| D-3 | Postman or Insomnia collection covering all endpoints | `api/community-waste.postman_collection.json` (29 requests) + `api/community-waste.insomnia_collection.json` (matching); both have `pm.test` assertions | ✅ |
+| D-4 | README.md with setup, migrations & seeding, env vars, architecture decisions | §Setup, §Migrations & seeding, §Environment variables, §Architecture decisions (+ ADR cross-links) | ✅ |
+| D-5 | Daily commits throughout the test period | `git log --since='5 days ago' --oneline \| wc -l` ≥ 5 | ✅ |
+
+> All 16 endpoints, 6 business rules, 6 tech requirements, and 5 deliverables satisfied.
+> Observability (Prometheus, Grafana, Jaeger, OTel + Loki), concurrency hardening
+> (advisory locks, partial UNIQUE index, SELECT FOR UPDATE), and rich quality gates
+> (golangci-lint v2.12.2, 80% coverage gate, `-race` everywhere, testcontainers,
+> full-stack E2E) are **beyond-spec** and form the primary differentiation.
 
 ---
 
@@ -277,7 +280,7 @@ Final pre-submission gate. Every box must be checked before declaring done.
 - [x] Conventional Commits format throughout
 - [x] No company name / PII in any committed file (`grep -ri "<company-name>"` returns empty)
 - [x] `.env.example` enumerates every required env var; secrets never committed
-- [x] `Tes Backend INOSOFT 2026 (Go).pdf` and `REQUIREMENTS_RAW.md` remain gitignored
+- [x] The backend engineering test brief PDF and `REQUIREMENTS_RAW.md` remain gitignored
 - [x] All planning files present under `plans/` (phase-0 through phase-7 + execution strategy + this gap-closure plan)
 
 ### 5.5 Final CI run
