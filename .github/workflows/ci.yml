@@ -33,6 +33,48 @@ jobs:
           version: v2.12.2
           args: --timeout=5m
 
+      - name: Compliance check (no forbidden identifiers)
+        run: bash scripts/compliance_check.sh
+
+  vuln:
+    name: Vulnerability Scan
+    runs-on: ubuntu-24.04
+    needs: [lint]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  image-scan:
+    name: Container Image Scan
+    runs-on: ubuntu-24.04
+    needs: [lint]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t cwc-scan:ci -f build/Dockerfile .
+
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: cwc-scan:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
   test-unit:
     name: Unit Tests
     runs-on: ubuntu-24.04
