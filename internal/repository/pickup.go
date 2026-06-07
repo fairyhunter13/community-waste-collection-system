@@ -54,6 +54,7 @@ func (r *pickupRepo) Create(ctx context.Context, p *domain.WastePickup) error {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "INSERT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.Create", err)
 		return mapPickupCreateErr(err)
 	}
 	defer func() { _ = rows.Close() }()
@@ -285,6 +286,7 @@ func (r *pickupRepo) FindExpiredOrganic(ctx context.Context, before time.Time) (
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.FindExpiredOrganic", err)
 		return nil, fmt.Errorf("find expired organic: %w", domain.ErrInternalFailure)
 	}
 	result := make([]*domain.WastePickup, len(rows))
@@ -325,6 +327,7 @@ func (r *pickupRepo) BulkCancel(ctx context.Context, ids []uuid.UUID) error {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "UPDATE").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.BulkCancel", err)
 		return fmt.Errorf("bulk cancel pickups: %w", domain.ErrInternalFailure)
 	}
 	span.SetStatus(codes.Ok, "")

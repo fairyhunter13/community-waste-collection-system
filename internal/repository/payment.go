@@ -63,6 +63,7 @@ func (r *paymentRepo) Create(ctx context.Context, p *domain.Payment) error {
 		observability.DbErrorsTotal.WithLabelValues("payments", "INSERT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "paymentRepo.Create", err)
 		return mapPaymentCreateErr(err)
 	}
 	defer func() { _ = rows.Close() }()
@@ -102,6 +103,7 @@ func (r *paymentRepo) CreateWithTx(ctx context.Context, tx *sqlx.Tx, p *domain.P
 		observability.DbErrorsTotal.WithLabelValues("payments", "INSERT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "paymentRepo.CreateWithTx", err)
 		return mapPaymentCreateErr(err)
 	}
 	defer func() { _ = rows.Close() }()
@@ -144,6 +146,7 @@ func (r *paymentRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Payme
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "paymentRepo.FindByID", err)
 		return nil, fmt.Errorf("find payment: %w", domain.ErrInternalFailure)
 	}
 	span.SetStatus(codes.Ok, "")
@@ -252,6 +255,7 @@ func (r *paymentRepo) Confirm(ctx context.Context, id uuid.UUID, proofURL string
 		observability.DbErrorsTotal.WithLabelValues("payments", "UPDATE").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "paymentRepo.Confirm", err)
 		return fmt.Errorf("confirm payment: %w", domain.ErrInternalFailure)
 	}
 	n, _ := result.RowsAffected()

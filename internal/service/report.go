@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
@@ -28,6 +29,10 @@ func (s *reportService) WasteSummary(ctx context.Context) ([]domain.WasteTypeSum
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		observability.FromContext(ctx).ErrorContext(ctx, "waste summary failed",
+			slog.String("op", "ReportService.WasteSummary"),
+			slog.Any("err", err),
+		)
 		return nil, err
 	}
 	span.SetAttributes(attribute.Int("result.types", len(result)))
@@ -43,6 +48,10 @@ func (s *reportService) PaymentSummary(ctx context.Context) (*domain.PaymentSumm
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		observability.FromContext(ctx).ErrorContext(ctx, "payment summary failed",
+			slog.String("op", "ReportService.PaymentSummary"),
+			slog.Any("err", err),
+		)
 		return nil, err
 	}
 	span.SetAttributes(attribute.String("result.total_revenue", result.TotalRevenue.StringFixed(2)))
@@ -55,10 +64,17 @@ func (s *reportService) HouseholdHistory(ctx context.Context, id uuid.UUID) (*do
 	span.SetAttributes(attribute.String("household.id", id.String()))
 	defer span.End()
 
+	log := observability.FromContext(ctx).With(slog.String("op", "ReportService.HouseholdHistory"))
+	log.DebugContext(ctx, "begin", slog.String("household_id", id.String()))
+
 	result, err := s.paymentRepo.HouseholdHistory(ctx, id)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		log.ErrorContext(ctx, "household history failed",
+			slog.String("household_id", id.String()),
+			slog.Any("err", err),
+		)
 		return nil, err
 	}
 	span.SetAttributes(
@@ -66,5 +82,10 @@ func (s *reportService) HouseholdHistory(ctx context.Context, id uuid.UUID) (*do
 		attribute.Int("result.payments", len(result.Payments)),
 	)
 	span.SetStatus(codes.Ok, "")
+	log.InfoContext(ctx, "fetched",
+		slog.String("household_id", id.String()),
+		slog.Int("pickups", len(result.Pickups)),
+		slog.Int("payments", len(result.Payments)),
+	)
 	return result, nil
 }

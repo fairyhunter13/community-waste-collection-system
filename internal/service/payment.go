@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,6 +34,12 @@ func (s *paymentService) Create(ctx context.Context, req domain.CreatePaymentReq
 	)
 	defer span.End()
 
+	log := observability.FromContext(ctx).With(slog.String("op", "PaymentService.Create"))
+	log.DebugContext(ctx, "begin",
+		slog.String("household_id", req.HouseholdID.String()),
+		slog.String("waste_id", req.WasteID.String()),
+	)
+
 	payment := &domain.Payment{
 		HouseholdID: req.HouseholdID,
 		WasteID:     req.WasteID,
@@ -42,11 +49,16 @@ func (s *paymentService) Create(ctx context.Context, req domain.CreatePaymentReq
 	if err := s.repo.Create(ctx, payment); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		log.ErrorContext(ctx, "create failed", slog.Any("err", err))
 		return nil, err
 	}
 	span.SetAttributes(attribute.String("payment.id", payment.ID.String()))
 	span.SetStatus(codes.Ok, "")
 	observability.PaymentsCreatedTotal.Inc()
+	log.InfoContext(ctx, "created",
+		slog.String("payment_id", payment.ID.String()),
+		slog.String("amount", req.Amount.StringFixed(2)),
+	)
 	return payment, nil
 }
 
@@ -65,6 +77,10 @@ func (s *paymentService) List(ctx context.Context, filter domain.PaymentFilter) 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		observability.FromContext(ctx).ErrorContext(ctx, "list payments failed",
+			slog.String("op", "PaymentService.List"),
+			slog.Any("err", err),
+		)
 		return nil, 0, err
 	}
 	span.SetAttributes(attribute.Int("result.count", total))
@@ -82,10 +98,14 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 	)
 	defer span.End()
 
+	log := observability.FromContext(ctx).With(slog.String("op", "PaymentService.Confirm"))
+	log.DebugContext(ctx, "begin", slog.String("payment_id", id.String()))
+
 	if file == nil {
 		err := fmt.Errorf("proof file is required: %w", domain.ErrValidation)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "no proof file")
+		log.InfoContext(ctx, "rejected: no proof file", slog.String("payment_id", id.String()))
 		return nil, err
 	}
 
@@ -93,12 +113,17 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		log.ErrorContext(ctx, "find payment failed", slog.String("payment_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
 	if payment.Status != domain.PaymentStatusPending {
 		err := fmt.Errorf("payment status is %s, must be pending: %w", payment.Status, domain.ErrConflict)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "payment not in pending status")
+		log.InfoContext(ctx, "rejected: invalid status",
+			slog.String("payment_id", id.String()),
+			slog.String("status", string(payment.Status)),
+		)
 		return nil, err
 	}
 
@@ -107,6 +132,7 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "s3 upload failed")
+		log.ErrorContext(ctx, "proof upload failed", slog.String("payment_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
 
@@ -114,6 +140,7 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 	if err := s.repo.Confirm(ctx, id, proofURL, paidAt); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		log.ErrorContext(ctx, "confirm failed", slog.String("payment_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
 
@@ -123,5 +150,9 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 	payment.Status = domain.PaymentStatusPaid
 	payment.ProofFileURL = &proofURL
 	payment.PaymentDate = &paidAt
+	log.InfoContext(ctx, "confirmed",
+		slog.String("payment_id", id.String()),
+		slog.String("household_id", payment.HouseholdID.String()),
+	)
 	return payment, nil
 }

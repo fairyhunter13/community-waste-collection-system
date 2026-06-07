@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"go.opentelemetry.io/otel/trace"
+
+	"github.com/fairyhunter13/community-waste-collection-system/internal/observability"
 )
 
-// RequestLogger returns an Echo middleware that logs each request with slog.
+// RequestLogger returns an Echo middleware that logs each request with slog,
+// enriched with trace_id and span_id from the active OTel span.
 func RequestLogger(logger *slog.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -19,6 +21,7 @@ func RequestLogger(logger *slog.Logger) echo.MiddlewareFunc {
 			req := c.Request()
 			res := c.Response()
 
+			log := observability.EnrichLogger(logger, req.Context())
 			attrs := []any{
 				slog.String("method", req.Method),
 				slog.String("path", req.URL.Path),
@@ -26,21 +29,15 @@ func RequestLogger(logger *slog.Logger) echo.MiddlewareFunc {
 				slog.Duration("duration", duration),
 				slog.String("ip", c.RealIP()),
 			}
-			if span := trace.SpanFromContext(req.Context()); span.SpanContext().IsValid() {
-				attrs = append(attrs,
-					slog.String("trace_id", span.SpanContext().TraceID().String()),
-					slog.String("span_id", span.SpanContext().SpanID().String()),
-				)
-			}
 			if rid := res.Header().Get(echo.HeaderXRequestID); rid != "" {
 				attrs = append(attrs, slog.String("request_id", rid))
 			}
 
 			if err != nil {
 				attrs = append(attrs, slog.String("error", err.Error()))
-				logger.ErrorContext(req.Context(), "request", attrs...)
+				log.ErrorContext(req.Context(), "request", attrs...)
 			} else {
-				logger.InfoContext(req.Context(), "request", attrs...)
+				log.InfoContext(req.Context(), "request", attrs...)
 			}
 			return err
 		}
