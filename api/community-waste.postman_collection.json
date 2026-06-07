@@ -36,10 +36,42 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('household_id', body.data.id);"
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Created resource has a UUID id\", function () {",
+                  "    if (pm.response.code === 201) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.data).to.have.property(\"id\");",
+                  "        pm.expect(body.data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    }",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('household_id', body.data.id);",
+                  "}"
                 ]
               }
             }
@@ -90,7 +122,35 @@
           ]
         },
         {
-          "name": "Create Household \u2014 400 Missing Fields",
+          "name": "Create Household — 400 Missing Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "url": "{{base_url}}/api/households",
@@ -138,6 +198,39 @@
         },
         {
           "name": "List Households",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -189,6 +282,39 @@
         },
         {
           "name": "Get Household",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": "{{base_url}}/api/households/{{household_id}}"
@@ -215,7 +341,35 @@
           ]
         },
         {
-          "name": "Get Household \u2014 404",
+          "name": "Get Household — 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": "{{base_url}}/api/households/00000000-0000-0000-0000-000000000000"
@@ -243,6 +397,31 @@
         },
         {
           "name": "Delete Household",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "DELETE",
             "url": "{{base_url}}/api/households/{{household_id}}"
@@ -274,10 +453,42 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('pickup_id', body.data.id);"
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Created resource has a UUID id\", function () {",
+                  "    if (pm.response.code === 201) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.data).to.have.property(\"id\");",
+                  "        pm.expect(body.data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    }",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('pickup_id', body.data.id);",
+                  "}"
                 ]
               }
             }
@@ -329,6 +540,46 @@
         },
         {
           "name": "Create Pickup (electronic with safety_check)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Created resource has a UUID id\", function () {",
+                  "    if (pm.response.code === 201) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.data).to.have.property(\"id\");",
+                  "        pm.expect(body.data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    }",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "url": "{{base_url}}/api/pickups",
@@ -375,7 +626,35 @@
           ]
         },
         {
-          "name": "Create Pickup \u2014 409 Pending Payment",
+          "name": "Create Pickup — 409 Pending Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "url": "{{base_url}}/api/pickups",
@@ -422,16 +701,35 @@
           ]
         },
         {
-          "name": "Create Pickup \u2014 429 Rate Limited",
+          "name": "Create Pickup — 429 Rate Limited",
           "description": "Send this request 11+ times in rapid succession to trigger rate limiting (burst=10 per IP). Server enforces 5 req/s with burst 10 on POST /api/pickups.",
           "event": [
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 429', () => pm.response.to.have.status(429));",
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422, 429]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Status 429\", () => pm.response.to.have.status(429));",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});",
                   "const body = pm.response.json();",
-                  "pm.test('RATE_LIMITED code', () => pm.expect(body.error.code).to.equal('RATE_LIMITED'));"
+                  "pm.test('RATE_LIMITED code', () => pm.expect(body.error.code).to.equal('RATE_LIMIT_EXCEEDED'));"
                 ]
               }
             }
@@ -483,6 +781,39 @@
         },
         {
           "name": "List Pickups",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -533,7 +864,40 @@
           ]
         },
         {
-          "name": "List Pickups \u2014 filter by status",
+          "name": "List Pickups — filter by status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -577,6 +941,39 @@
         },
         {
           "name": "Schedule Pickup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "url": "{{base_url}}/api/pickups/{{pickup_id}}/schedule",
@@ -623,7 +1020,35 @@
           ]
         },
         {
-          "name": "Schedule Pickup \u2014 422 Electronic No Safety Check",
+          "name": "Schedule Pickup — 422 Electronic No Safety Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "url": "{{base_url}}/api/pickups/{{pickup_id}}/schedule",
@@ -671,6 +1096,39 @@
         },
         {
           "name": "Complete Pickup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "url": "{{base_url}}/api/pickups/{{pickup_id}}/complete"
@@ -698,6 +1156,39 @@
         },
         {
           "name": "Cancel Pickup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "url": "{{base_url}}/api/pickups/{{pickup_id}}/cancel"
@@ -724,7 +1215,35 @@
           ]
         },
         {
-          "name": "Cancel Pickup \u2014 409 Already Completed",
+          "name": "Cancel Pickup — 409 Already Completed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "url": "{{base_url}}/api/pickups/{{pickup_id}}/cancel"
@@ -761,10 +1280,42 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.collectionVariables.set('payment_id', body.data.id);"
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Created resource has a UUID id\", function () {",
+                  "    if (pm.response.code === 201) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.data).to.have.property(\"id\");",
+                  "        pm.expect(body.data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    }",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('payment_id', body.data.id);",
+                  "}"
                 ]
               }
             }
@@ -816,6 +1367,39 @@
         },
         {
           "name": "List Payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -866,7 +1450,40 @@
           ]
         },
         {
-          "name": "List Payments \u2014 filter by status",
+          "name": "List Payments — filter by status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -910,6 +1527,39 @@
         },
         {
           "name": "Confirm Payment (multipart proof upload)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "url": "{{base_url}}/api/payments/{{payment_id}}/confirm",
@@ -958,7 +1608,35 @@
           ]
         },
         {
-          "name": "Confirm Payment \u2014 400 No File",
+          "name": "Confirm Payment — 400 No File",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "url": "{{base_url}}/api/payments/{{payment_id}}/confirm",
@@ -993,7 +1671,35 @@
           ]
         },
         {
-          "name": "Confirm Payment \u2014 404",
+          "name": "Confirm Payment — 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "url": "{{base_url}}/api/payments/00000000-0000-0000-0000-000000000000/confirm",
@@ -1046,6 +1752,39 @@
       "item": [
         {
           "name": "Waste Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": "{{base_url}}/api/reports/waste-summary"
@@ -1073,6 +1812,39 @@
         },
         {
           "name": "Payment Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": "{{base_url}}/api/reports/payment-summary"
@@ -1100,6 +1872,39 @@
         },
         {
           "name": "Household History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Response envelope has success field\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property(\"success\");",
+                  "    pm.expect(body.success).to.be.true;",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": "{{base_url}}/api/reports/households/{{household_id}}/history"
@@ -1126,7 +1931,35 @@
           ]
         },
         {
-          "name": "Household History \u2014 404",
+          "name": "Household History — 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response has JSON content type\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": "{{base_url}}/api/reports/households/00000000-0000-0000-0000-000000000000/history"

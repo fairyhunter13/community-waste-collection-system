@@ -4,6 +4,10 @@
 
 # Community Waste Collection API
 
+> **Backend engineering test deliverable** — Community Waste Collection API.  
+> Implements the supplied brief end-to-end: **16 REST endpoints**, **6 business rules** (BR-01 .. BR-06), and **6 production-readiness requirements** (TR-1 .. TR-6).  
+> Traceability matrix: [`plans/phase-7-final-verification.md`](plans/phase-7-final-verification.md)
+
 A RESTful API service for managing community household waste collection,
 pickup scheduling, and payment processing.
 
@@ -552,6 +556,35 @@ The stack ships Loki + Promtail alongside Prometheus and Jaeger. Promtail tails 
 **Pivot from Loki:**
 - Each log line's `trace_id` field is a clickable derived field link that opens the Jaeger trace directly
 
+### Error Visibility
+
+When any request fails, the JSON response body includes a `meta` object:
+
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "..." },
+  "meta": {
+    "request_id": "01HXYZ...",
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "span_id": "00f067aa0ba902b7"
+  }
+}
+```
+
+**To trace an error end-to-end:**
+1. Read `meta.request_id` (or `X-Request-Id` response header) and `meta.trace_id` from the error body.
+2. Open **Grafana → Logs and Traces** dashboard → paste `trace_id` into the `trace_id` textbox to see all log lines for that request with `source.file`, `source.function`, and `source.line`.
+3. Alternatively paste `request_id` into the `request_id` textbox.
+4. Click any `trace_id` value in the log panel → opens the full Jaeger trace.
+5. Click any Jaeger span → **View logs** → returns to Loki filtered by that span's ID.
+
+Log severity follows this ladder:
+- `DEBUG` — method entry with input IDs (no PII)
+- `INFO` — successful state transitions
+- `WARN` — expected domain errors (conflict, validation, business-rule violation)
+- `ERROR` — unexpected repository or infrastructure failures
+
 ### SLOs and Alerts
 
 Service-level objectives ([`deployments/prometheus/alerts.yml`](deployments/prometheus/alerts.yml)):
@@ -757,6 +790,41 @@ to recover.
 - **Rate-limiter memory leak:** per-IP entries TTL out after 30 min
   idle (background sweeper); current population exposed via
   `rate_limit_active_clients`.
+
+---
+
+## Spec Compliance
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Endpoints (Household, Pickup, Payment, Reporting) | 16/16 | ✅ All implemented |
+| Business rules (BR-01 .. BR-06) | 6/6 | ✅ All enforced |
+| Technical requirements (TR-1 .. TR-6) | 6/6 | ✅ All met |
+| Deliverables | 5/5 | ✅ All present |
+
+Full per-requirement traceability (file paths + test names) is in [`plans/phase-7-final-verification.md`](plans/phase-7-final-verification.md).
+
+### Business rules at a glance
+
+| # | Rule | Enforcement |
+|---|------|-------------|
+| BR-01 | No new pickup if household has a pending payment | `internal/service/pickup.go` Create — advisory lock + partial UNIQUE index |
+| BR-02 | Schedule only if status is `pending` | Conditional `UPDATE … WHERE status='pending'` → 409 on stale state |
+| BR-03 | Electronic pickup: `safety_check` must be `true` before scheduling | Service + validator; 422 otherwise |
+| BR-04 | Organic pickups auto-canceled after 3 days via goroutine | `internal/worker/organic_canceler.go` — ticks every minute, cleans up gracefully on shutdown |
+| BR-05 | Completing a pickup auto-creates a payment (50 000 or 100 000) | `SELECT FOR UPDATE` + atomic tx in `internal/service/pickup.go` Complete |
+| BR-06 | Payment confirmation requires S3 proof-of-payment file upload | MIME allowlist + magic-byte sniff + MinIO upload + URL saved to DB |
+
+### Technical requirements at a glance
+
+| # | Requirement | Where |
+|---|-------------|-------|
+| TR-1 | Dependency injection | Constructor wiring in `cmd/api/main.go`; interfaces in `internal/domain/` |
+| TR-2 | Graceful shutdown | Signal handler + `wg.Wait()` in `cmd/api/main.go`; worker drains before exit |
+| TR-3 | Rate limiting on pickup creation | Per-IP token bucket on `POST /api/pickups`; `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST` env vars |
+| TR-4 | Docker + single command | `make docker-up` boots 9 services; `docker compose up` equivalently |
+| TR-5 | Consistent API responses | Envelope `{success, data?, error?, meta?}` on every endpoint; audited in `error_envelope_test.go` |
+| TR-6 | Input validation | `validator/v10` + custom `db_exists_household` / `db_exists_pickup` tags; tested per-field |
 
 ---
 
