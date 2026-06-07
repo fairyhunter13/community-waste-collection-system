@@ -66,14 +66,19 @@ jobs:
       - name: Build Docker image
         run: docker build -t cwc-scan:ci -f build/Dockerfile .
 
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin
+
       - name: Run Trivy image scan
-        uses: aquasecurity/trivy-action@0.30.0
-        with:
-          image-ref: cwc-scan:ci
-          format: table
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: HIGH,CRITICAL
+        run: |
+          trivy image \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --format table \
+            cwc-scan:ci
 
   test-unit:
     name: Unit Tests
@@ -331,6 +336,10 @@ jobs:
         env:
           BASE_URL: "http://localhost:8080"
           E2E_DB_URL: "postgres://postgres:postgres@localhost:5432/waste_collection?sslmode=disable"
+          # Loki correlation is verified in the dedicated step below (after a
+          # 15-second Promtail flush window). Skip the in-test Loki assertion
+          # to avoid a race between the request and Promtail's tail interval.
+          E2E_SKIP_LOKI: "true"
 
       - name: Verify trace-to-log correlation via Loki
         run: |
