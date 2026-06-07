@@ -3,6 +3,7 @@ CMD        := ./cmd/api
 MIGRATIONS := migrations
 MODULE     := github.com/fairyhunter13/community-waste-collection-system
 DB_URL     ?= $(DATABASE_URL)
+BASE_URL   ?= http://localhost:8080
 VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -16,9 +17,10 @@ LDFLAGS    := -w -s \
 .PHONY: help all run build clean \
         lint fmt vet mocks \
         test test-unit test-integration test-e2e bench perf coverage \
+        load load-average \
         migrate-up migrate-down migrate-force migrate-version migrate-create \
         docker-up docker-down docker-logs docker-clean \
-        seed
+        seed compliance-check
 
 ## help: show this help (default target)
 help:
@@ -92,6 +94,16 @@ perf:
 	    ./test/perf/... \
 	    -timeout 300s
 
+.PHONY: load
+## load: Run k6 smoke load test against the running stack
+load:
+	k6 run test/load/smoke.js --env BASE_URL=$(BASE_URL)
+
+.PHONY: load-average
+## load-average: Run k6 average-load test against the running stack
+load-average:
+	k6 run test/load/average.js --env BASE_URL=$(BASE_URL)
+
 ## coverage: render coverage.out as HTML
 coverage:
 	go tool cover -html=coverage.out -o coverage.html
@@ -144,3 +156,8 @@ docker-clean:
 ## seed: load scripts/seed.sql into the configured DB
 seed:
 	psql "$(DB_URL)" -f scripts/seed.sql
+
+.PHONY: compliance-check
+## compliance-check: Run compliance check for forbidden identifiers
+compliance-check:
+	@bash scripts/compliance_check.sh
