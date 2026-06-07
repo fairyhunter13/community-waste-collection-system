@@ -49,6 +49,45 @@ export default function () {
       { headers },
     );
     check(pkRes, { 'pickup created': (r) => r.status === 201 });
+
+    // L2: exercise the multipart payment-confirm write path on every iteration.
+    // Create a full lifecycle: schedule → complete → confirm (BR-06).
+    if (pkRes.status === 201) {
+      const pickupId = pkRes.json('data.id');
+      const tomorrow = new Date(Date.now() + 86400000).toISOString();
+
+      const schedRes = http.put(
+        `${BASE_URL}/api/pickups/${pickupId}/schedule`,
+        JSON.stringify({ pickup_date: tomorrow }),
+        { headers },
+      );
+      check(schedRes, { 'pickup scheduled': (r) => r.status === 200 });
+
+      const complRes = http.put(`${BASE_URL}/api/pickups/${pickupId}/complete`, null, { headers });
+      check(complRes, { 'pickup completed': (r) => r.status === 200 });
+
+      if (complRes.status === 200) {
+        // Find the newly created pending payment for this household.
+        const payListRes = http.get(`${BASE_URL}/api/payments?household_id=${householdId}&status=pending`);
+        if (payListRes.status === 200) {
+          const payments = payListRes.json('data');
+          if (payments && payments.length > 0) {
+            const paymentId = payments[0].id;
+            // Minimal JPEG magic bytes as proof file (satisfies the magic-byte sniff check).
+            const fakeJpeg = new Uint8Array([
+              0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10,
+              0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+              0xFF, 0xD9,
+            ]).buffer;
+            const confirmRes = http.put(
+              `${BASE_URL}/api/payments/${paymentId}/confirm`,
+              { proof: http.file(fakeJpeg, 'receipt.jpg', 'image/jpeg') },
+            );
+            check(confirmRes, { 'payment confirmed': (r) => r.status === 200 });
+          }
+        }
+      }
+    }
   }
 
   sleep(0.5);
