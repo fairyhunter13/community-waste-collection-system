@@ -25,6 +25,6 @@
 
 ## Checklist
 
-- [ ] No company name, email, address, or phone number added to committed files
+- [ ] No PII, confidential data, or sensitive credentials added to committed files
 - [ ] OpenAPI spec updated if endpoints changed
 - [ ] README updated if setup/usage changed

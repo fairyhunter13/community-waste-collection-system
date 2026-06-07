@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Ensures no company-identifying information from the backend engineering test
-# brief leaks into committed files. Searches the tree (excluding .git and
-# binary/gitignored paths) for the forbidden patterns and exits non-zero if
-# any are found.
+# License and terminology audit — asserts that no identifying strings from
+# the private requirements document leak into committed files. Searches the
+# tree (excluding .git and binary/gitignored paths) for the forbidden
+# patterns and exits non-zero if any are found.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -39,8 +39,8 @@ check_pattern "6231.8700688" "phone number variant"
 
 if [ "$FAILED" -eq 1 ]; then
   echo ""
-  echo "Compliance check FAILED: remove all forbidden identifiers before committing."
+  echo "Terminology audit FAILED: remove all forbidden strings before committing."
   exit 1
 fi
 
-echo "Compliance check PASSED: no forbidden identifiers found."
+echo "Terminology audit PASSED: no forbidden strings found."

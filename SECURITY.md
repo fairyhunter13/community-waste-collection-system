@@ -17,4 +17,4 @@ Only the `main` branch receives security fixes.
 
 ## Scope
 
-This is a backend engineering test project. Production deployments with real user data are out of scope.
+This service manages community waste-collection workflows. Report vulnerabilities that could expose household data, allow unauthenticated access to admin endpoints, or enable privilege escalation between tenants. Theoretical denial-of-service against the development docker-compose stack is out of scope.
