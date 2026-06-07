@@ -12,6 +12,7 @@ LDFLAGS    := -w -s
         lint fmt vet mocks \
         test test-unit test-integration test-e2e bench perf coverage \
         load load-average \
+        dashboards-lint dashboards-int dashboards-e2e dashboards-playwright \
         migrate-up migrate-down migrate-force migrate-version migrate-create \
         docker-up docker-down docker-logs docker-clean \
         seed compliance-check
@@ -97,6 +98,25 @@ load:
 ## load-average: Run k6 average-load test against the running stack
 load-average:
 	k6 run test/load/average.js --env BASE_URL=$(BASE_URL)
+
+## dashboards-lint: D1 — static lint of all dashboard JSON files (no infra)
+dashboards-lint:
+	go test ./test/dashboards/ -v -count=1
+
+## dashboards-int: D2 — metric existence check (no infra needed)
+dashboards-int:
+	go test -tags dashboard_int ./test/dashboards/ -run TestMetricExistence -v -count=1
+
+## dashboards-e2e: D3 — live data check (requires running stack: PROMETHEUS_URL, LOKI_URL)
+dashboards-e2e:
+	go test -tags dashboard_e2e ./test/dashboards/ -run TestLiveDashboardData -v -count=1 \
+	    -timeout 120s
+
+## dashboards-playwright: D4 — browser render check (requires running Grafana + npm ci)
+dashboards-playwright:
+	cd test/dashboards/playwright && npm ci && \
+	    npx playwright install --with-deps chromium && \
+	    npx playwright test
 
 ## coverage: render coverage.out as HTML
 coverage:

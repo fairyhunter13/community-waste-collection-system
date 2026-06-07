@@ -1,0 +1,12 @@
+{
+  "name": "dashboard-playwright",
+  "version": "1.0.0",
+  "description": "Grafana dashboard render checks via Playwright",
+  "private": true,
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.0"
+  }
+}

@@ -3,7 +3,9 @@
 package e2e_test
 
 import (
+	"bytes"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"time"
 )
@@ -551,4 +553,67 @@ func (s *E2ESuite) TestPayment_CreateDuplicateForSamePickup() {
 	resp.Body.Close()
 
 	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+}
+
+// E1: PUT /api/payments/:id/confirm with a multipart body that omits the
+// "proof" part must return 400 VALIDATION_ERROR (BR-06 E2E gap).
+func (s *E2ESuite) TestConfirmPayment_MissingProofPart_400() {
+	// Create household + pickup + complete to get a pending payment.
+	var hResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "E1 Missing Proof Owner",
+		"address":    "Jl. E1 No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+	defer s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+
+	var pResp map[string]any
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{
+		"household_id": householdID,
+		"type":         "organic",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	// Find the newly created pending payment.
+	var payList map[string]any
+	resp = s.do(http.MethodGet, "/api/payments", nil)
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.decode(resp, &payList)
+	var paymentID string
+	for _, p := range payList["data"].([]any) {
+		pm := p.(map[string]any)
+		if pm["household_id"] == householdID && pm["status"] == "pending" {
+			paymentID = pm["id"].(string)
+			break
+		}
+	}
+	s.Require().NotEmpty(paymentID, "no pending payment found for household")
+
+	// Submit a multipart body with no "proof" part — just an unrelated field.
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.WriteField("unrelated", "value")
+	mw.Close()
+
+	req, err := http.NewRequest(
+		http.MethodPut,
+		s.baseURL+pathf("/api/payments/%s/confirm", paymentID),
+		&body,
+	)
+	s.Require().NoError(err)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	confirmResp, err := s.client.Do(req)
+	s.Require().NoError(err)
+	defer confirmResp.Body.Close()
+	s.Equal(http.StatusBadRequest, confirmResp.StatusCode)
 }

@@ -96,6 +96,32 @@ func (s *OrganicCancelerSuite) TestRun_BulkCancelError_LogsAndReturns() {
 	s.repo.AssertCalled(s.T(), "BulkCancel", mock.Anything, []uuid.UUID{id})
 }
 
+// U1: context cancel must cause Start to return within a generous deadline.
+func (s *OrganicCancelerSuite) TestContextCancelExitsPromptly() {
+	// Set a long tick interval so the goroutine blocks inside the select.
+	s.cfg.WorkerCancelInterval = 10 * time.Second
+	w := worker.NewOrganicCanceler(s.repo, s.logger, s.cfg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan struct{})
+	go func() {
+		w.Start(ctx)
+		close(done)
+	}()
+
+	// Give Start time to enter its select loop, then cancel.
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+		// exited promptly — pass
+	case <-time.After(2 * time.Second):
+		s.Fail("Start did not exit within 2s after context cancellation")
+	}
+}
+
 var errFindFailed = &testError{"find failed"}
 
 type testError struct{ msg string }

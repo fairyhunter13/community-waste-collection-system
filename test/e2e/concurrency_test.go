@@ -136,3 +136,119 @@ func (s *E2ESuite) TestConcurrent_Complete_OnlyOneSucceeds() {
 	payments := listResp["data"].([]any)
 	s.Len(payments, 1, "exactly one payment must be created despite N parallel Complete calls")
 }
+
+// E2: N=8 concurrent POST /api/payments for the same household → exactly one
+// 201, N-1 409 or business-rule error. Exercises the partial UNIQUE index
+// uq_payments_one_pending_per_household at the wire level.
+func (s *E2ESuite) TestPayments_ConcurrentDirectCreate_PartialUniqueWins() {
+	const N = 8
+
+	// Create household + organic pickup (pending, so the unique index fires).
+	var hResp, pResp map[string]any
+	r := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "E2 Concurrent Payment Owner",
+		"address":    "Jl. E2 No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, r.StatusCode)
+	s.decode(r, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+	defer s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+
+	r = s.do(http.MethodPost, "/api/pickups", map[string]any{
+		"household_id": householdID,
+		"type":         "organic",
+	})
+	s.Require().Equal(http.StatusCreated, r.StatusCode)
+	s.decode(r, &pResp)
+	wasteID := pResp["data"].(map[string]any)["id"].(string)
+
+	// Fire N parallel POST /api/payments for the same household+waste pair.
+	var created, rejected int64
+	var wg sync.WaitGroup
+	startGate := make(chan struct{})
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-startGate
+			resp := s.do(http.MethodPost, "/api/payments", map[string]any{
+				"household_id": householdID,
+				"waste_id":     wasteID,
+				"amount":       "50000.00",
+			})
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusCreated {
+				atomic.AddInt64(&created, 1)
+			} else {
+				atomic.AddInt64(&rejected, 1)
+			}
+		}()
+	}
+	close(startGate)
+	wg.Wait()
+
+	s.Equal(int64(1), atomic.LoadInt64(&created),
+		"exactly one payment creation must succeed under N=%d parallel requests", N)
+	s.Equal(int64(N-1), atomic.LoadInt64(&rejected),
+		"the other N-1 requests must be rejected by the partial UNIQUE index")
+}
+
+// E4: N=8 concurrent POST /api/pickups for the same household → exactly one
+// 201, N-1 fail with BR-01 / 409. Exercises pg_advisory_xact_lock path.
+func (s *E2ESuite) TestPickups_ConcurrentCreate_SameHousehold_AdvisoryLockSerializes() {
+	const N = 8
+
+	// Create household + one pending payment so BR-01 is in play.
+	var hResp, pResp map[string]any
+	r := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "E4 Advisory Lock Owner",
+		"address":    "Jl. E4 No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, r.StatusCode)
+	s.decode(r, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+	defer s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+
+	// Create a pickup + complete it to produce a pending payment (triggers BR-01).
+	r = s.do(http.MethodPost, "/api/pickups", map[string]any{
+		"household_id": householdID,
+		"type":         "organic",
+	})
+	s.Require().Equal(http.StatusCreated, r.StatusCode)
+	s.decode(r, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	// Now fire N parallel pickup creates — BR-01 and the advisory lock should
+	// prevent all but zero from succeeding (the household has a pending payment).
+	var created, rejected int64
+	var wg sync.WaitGroup
+	startGate := make(chan struct{})
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-startGate
+			resp := s.do(http.MethodPost, "/api/pickups", map[string]any{
+				"household_id": householdID,
+				"type":         "general",
+			})
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusCreated {
+				atomic.AddInt64(&created, 1)
+			} else {
+				atomic.AddInt64(&rejected, 1)
+			}
+		}()
+	}
+	close(startGate)
+	wg.Wait()
+
+	s.Equal(int64(0), atomic.LoadInt64(&created),
+		"no new pickups must be created when household has a pending payment (BR-01)")
+	s.Equal(int64(N), atomic.LoadInt64(&rejected),
+		"all N=%d requests must be rejected by BR-01", N)
+}

@@ -83,3 +83,24 @@ func BenchmarkPaymentSummary(b *testing.B) {
 		resp.Body.Close()
 	}
 }
+
+// P1: BenchmarkHouseholdHistory profiles GET /api/reports/households/:id/history,
+// which joins three tables and is expected to be the most expensive read path.
+// Requires PERF_HOUSEHOLD_ID env var pointing at a seeded household.
+func BenchmarkHouseholdHistory(b *testing.B) {
+	base := benchBaseURL(b)
+	householdID := os.Getenv("PERF_HOUSEHOLD_ID")
+	if householdID == "" {
+		b.Skip("PERF_HOUSEHOLD_ID not set — seed a household and set the env var")
+	}
+	client := &http.Client{}
+	url := fmt.Sprintf("%s/api/reports/households/%s/history", base, householdID)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		resp, err := client.Get(url)
+		if err != nil {
+			b.Fatal(err)
+		}
+		resp.Body.Close()
+	}
+}
