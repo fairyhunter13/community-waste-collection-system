@@ -32,14 +32,14 @@ jobs:
           # Override with docker-internal service hostnames
           sed -i 's|DATABASE_URL=.*|DATABASE_URL=postgres://postgres:postgres@postgres:5432/waste_collection?sslmode=disable|' .env
           sed -i 's|S3_ENDPOINT=.*|S3_ENDPOINT=http://minio:9000|' .env
-          sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318|' .env
+          sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318|' .env
           echo "APP_ENV=ci" >> .env
           echo "WORKER_CANCEL_INTERVAL=5s" >> .env
 
       - name: Start infrastructure services
         run: |
           docker compose -f deployments/docker-compose.yml up --build -d \
-            postgres minio otel-collector
+            postgres minio jaeger
 
       - name: Wait for postgres
         run: |

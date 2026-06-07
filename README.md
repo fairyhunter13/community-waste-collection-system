@@ -61,7 +61,7 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
 - **Go 1.26+** (`go version` should report `go1.26.x`).
 - **Docker 24+** with the **Compose v2 plugin** (`docker compose version` should report `2.x`). The legacy `docker-compose` shim is not used.
 - **GNU make** (`make --version`). On macOS, ship Xcode Command Line Tools.
-- **Ports free** on the host: `8080` (API), `5432` (Postgres), `9000`/`9001` (MinIO), `3000` (Grafana), `9090` (Prometheus), `16686` (Jaeger UI), `4317`/`4318` (OTLP), `2112` (Prometheus scrape target), `6060` (pprof). See [Troubleshooting](#troubleshooting) if any of these collide with a host service.
+- **Ports free** on the host: `8080` (API), `5432` (Postgres), `9000`/`9001` (MinIO), `3000` (Grafana), `9090` (Prometheus), `16686` (Jaeger UI), `4317`/`4318` (Jaeger OTLP), `3100` (Loki), `2112` (Prometheus scrape target), `6060` (pprof). See [Troubleshooting](#troubleshooting) if any of these collide with a host service.
 - **Optional but recommended for local SQL work:**
   - [`migrate` CLI](https://github.com/golang-migrate/migrate/releases) — run migrations from the host without entering the API container.
   - `psql` client — inspect the live DB during development.
@@ -73,7 +73,7 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
 
 ```bash
 cp .env.example .env
-make docker-up       # start all services (postgres, minio, otel-collector, jaeger, prometheus, grafana, api)
+make docker-up       # start all services (postgres, minio, jaeger, prometheus, grafana, loki, promtail, api)
 make migrate-up      # apply database migrations
 ```
 
@@ -146,17 +146,6 @@ docker compose -f deployments/docker-compose.yml restart api
 
 You can also create the bucket manually in the MinIO console at
 http://localhost:9001 (login `minioadmin` / `minioadmin`).
-
-### OpenTelemetry collector reports `connection refused` for Jaeger
-
-The `otel-collector` service must wait for `jaeger` to be ready before
-exporting traces. The Compose file sets `depends_on: jaeger` with a
-healthcheck — if you see the error, restart the collector after Jaeger
-finishes booting:
-
-```bash
-docker compose -f deployments/docker-compose.yml restart otel-collector
-```
 
 ### `migrate` CLI not found
 
@@ -299,7 +288,7 @@ See `.env.example` for a complete reference with comments.
 
 ```bash
 # 1. Start infrastructure only
-docker compose up -d postgres minio otel-collector
+docker compose up -d postgres minio jaeger
 
 # 2. Apply migrations
 make migrate-up
@@ -499,7 +488,7 @@ Error:
 
 ### Distributed Tracing
 
-Every request receives a root span created by `otelecho`. All handler, service, repository, worker, and storage functions create child spans. Business attributes (pickup type, household ID, filter params, etc.) are set on the root span via `trace.SpanFromContext`. Traces are exported via OTLP HTTP to the OpenTelemetry Collector and forwarded to Jaeger.
+Every request receives a root span created by `otelecho`. All handler, service, repository, worker, and storage functions create child spans. Business attributes (pickup type, household ID, filter params, etc.) are set on the root span via `trace.SpanFromContext`. Traces are exported via OTLP HTTP directly to Jaeger's native OTLP receiver.
 
 Span naming convention: `layer.domain.Method` (e.g., `service.pickup.Create`, `repository.household.FindByID`, `storage.s3.Upload`).
 
@@ -748,14 +737,14 @@ to recover.
   the next tick continues. If the loop is permanently stuck, restart
   the container; the worker resumes on boot.
 
-### OTel collector / Jaeger down
+### Jaeger down
 
 - **Symptoms:** traces stop appearing in Jaeger; structured logs still
-  carry `trace_id` / `span_id` so the correlation field is preserved.
-- **What still works:** every HTTP and worker path. The OTel exporter
-  is best-effort and never blocks the request hot path.
-- **Recovery:** restore the collector; tracing resumes on the next
-  request. No application restart needed.
+  carry `trace_id` / `span_id` so log/trace correlation remains usable.
+- **What still works:** every HTTP and worker path. The OTel OTLP
+  exporter is best-effort (fire-and-forget) and never blocks the hot path.
+- **Recovery:** restore Jaeger; tracing resumes on the next request.
+  No application restart needed.
 
 ### Prometheus / Grafana down
 
@@ -808,7 +797,7 @@ Per-requirement traceability (file paths + test names) is tracked in `plans/arch
 | TR-1 | Dependency injection | Constructor wiring in `cmd/api/main.go`; interfaces in `internal/domain/` |
 | TR-2 | Graceful shutdown | Signal handler + `wg.Wait()` in `cmd/api/main.go`; worker drains before exit |
 | TR-3 | Rate limiting on pickup creation | Per-IP token bucket on `POST /api/pickups`; `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST` env vars |
-| TR-4 | Docker + single command | `make docker-up` boots 9 services; `docker compose up` equivalently |
+| TR-4 | Docker + single command | `make docker-up` boots 8 services; `docker compose up` equivalently |
 | TR-5 | Consistent API responses | Envelope `{success, data?, error?, meta?}` on every endpoint; audited in `error_envelope_test.go` |
 | TR-6 | Input validation | `validator/v10` + custom `db_exists_household` / `db_exists_pickup` tags; tested per-field |
 
