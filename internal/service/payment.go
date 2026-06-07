@@ -105,7 +105,7 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 		err := fmt.Errorf("proof file is required: %w", domain.ErrValidation)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "no proof file")
-		log.InfoContext(ctx, "rejected: no proof file", slog.String("payment_id", id.String()))
+		log.WarnContext(ctx, "rejected: no proof file", slog.String("payment_id", id.String()))
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 		err := fmt.Errorf("payment status is %s, must be pending: %w", payment.Status, domain.ErrConflict)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "payment not in pending status")
-		log.InfoContext(ctx, "rejected: invalid status",
+		log.WarnContext(ctx, "rejected: invalid status",
 			slog.String("payment_id", id.String()),
 			slog.String("status", string(payment.Status)),
 		)
