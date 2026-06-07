@@ -18,6 +18,18 @@ make docker-up           # boots Postgres, MinIO, OTel, Jaeger, Prometheus, Graf
 curl -fsS http://localhost:8080/health  # should print {"status":"ok"}
 ```
 
+## Hot-reload dev loop
+
+For rapid iteration without a full docker-compose stack, use [air](https://github.com/air-verse/air):
+
+```bash
+go install github.com/air-verse/air@latest
+make dev   # rebuilds and restarts the binary on every .go file change
+```
+
+Requires a local Postgres (`DATABASE_URL` env var) and MinIO instance, or
+set `STORAGE_MOCK=true` to skip S3 uploads during local development.
+
 ## Running tests
 
 ```bash

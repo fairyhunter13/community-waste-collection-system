@@ -1,0 +1,17 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/api ./cmd/api"
+  bin = "./tmp/api"
+  full_bin = "./tmp/api"
+  include_ext = ["go", "yaml", "yml"]
+  include_dir = ["cmd", "internal", "api"]
+  exclude_dir = ["tmp", "bin", "vendor", "test", "plans", "docs"]
+  delay = 1000
+
+[log]
+  time = true
+
+[misc]
+  clean_on_exit = true
