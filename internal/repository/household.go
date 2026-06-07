@@ -43,6 +43,7 @@ func (r *householdRepo) Create(ctx context.Context, h *domain.Household) error {
 		observability.DbErrorsTotal.WithLabelValues("households", "INSERT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "householdRepo.Create", err)
 		return fmt.Errorf("create household: %w", domain.ErrInternalFailure)
 	}
 	defer func() { _ = rows.Close() }()
@@ -85,6 +86,7 @@ func (r *householdRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Hou
 		observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "householdRepo.FindByID", err)
 		return nil, fmt.Errorf("find household: %w", domain.ErrInternalFailure)
 	}
 	span.SetStatus(codes.Ok, "")
@@ -115,6 +117,7 @@ func (r *householdRepo) List(ctx context.Context, page, perPage int) ([]*domain.
 		observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "householdRepo.List.count", err)
 		return nil, 0, fmt.Errorf("count households: %w", domain.ErrInternalFailure)
 	}
 
@@ -129,6 +132,7 @@ func (r *householdRepo) List(ctx context.Context, page, perPage int) ([]*domain.
 		observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "householdRepo.List", err)
 		return nil, 0, fmt.Errorf("list households: %w", domain.ErrInternalFailure)
 	}
 
@@ -154,6 +158,7 @@ func (r *householdRepo) Delete(ctx context.Context, id uuid.UUID) error {
 		observability.DbErrorsTotal.WithLabelValues("households", "DELETE").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "householdRepo.Delete", err)
 		return fmt.Errorf("delete household: %w", domain.ErrInternalFailure)
 	}
 	n, err := result.RowsAffected()
