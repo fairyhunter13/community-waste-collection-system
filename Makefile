@@ -4,13 +4,7 @@ MIGRATIONS := migrations
 MODULE     := github.com/fairyhunter13/community-waste-collection-system
 DB_URL     ?= $(DATABASE_URL)
 BASE_URL   ?= http://localhost:8080
-VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-BUILD_DATE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-LDFLAGS    := -w -s \
-              -X main.version=$(VERSION) \
-              -X main.commit=$(COMMIT) \
-              -X main.buildDate=$(BUILD_DATE)
+LDFLAGS    := -w -s
 
 .DEFAULT_GOAL := help
 
@@ -35,7 +29,7 @@ all: lint test build
 run:
 	go run $(CMD)
 
-## build: produce ./bin/api with version metadata embedded
+## build: produce ./bin/api static binary
 build:
 	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o bin/$(BINARY) $(CMD)
 

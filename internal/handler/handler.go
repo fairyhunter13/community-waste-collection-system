@@ -150,9 +150,6 @@ func (h *Handler) RegisterRoutes(e *echo.Echo) {
 
 	e.GET("/health", h.HealthCheck)
 	e.GET("/readyz", h.ReadyCheck)
-	e.GET("/api/version", h.Version)
-	e.GET("/api/docs/openapi.yaml", h.ServeOpenAPISpec)
-	e.GET("/api/docs", h.ServeSwaggerUI)
 
 	api := e.Group("/api")
 

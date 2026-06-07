@@ -24,7 +24,7 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
 - **Per-IP rate limiting** on pickup creation (5 req/s, burst 10) via token bucket
 - **Full-stack observability**: structured JSON logs (slog), distributed tracing (OTel → Jaeger), 14 Prometheus metrics, 2 auto-provisioned Grafana dashboards
 - **Unit test coverage 82.7%** enforced in CI (gate ≥80%); integration tests use real PostgreSQL via testcontainers
-- **OpenAPI 3.0 spec** embedded in the binary and served at `/api/docs/openapi.yaml`
+- **OpenAPI 3.0 spec** documented in `api/openapi.yaml`
 
 ---
 
@@ -87,8 +87,6 @@ curl http://localhost:8080/health
 | Service | URL | Credentials |
 |---|---|---|
 | API | http://localhost:8080 | — |
-| OpenAPI Spec | http://localhost:8080/api/docs/openapi.yaml | — |
-| Swagger UI | http://localhost:8080/api/docs | — |
 | Grafana Dashboard | http://localhost:3000 | admin / admin |
 | Prometheus | http://localhost:9090 | — |
 | Jaeger UI (traces) | http://localhost:16686 | — |
@@ -406,13 +404,6 @@ newman run api/community-waste.postman_collection.json \
 |---|---|---|
 | `GET` | `/health` | Liveness probe — returns `{"status":"ok"}` whenever the process is bound and serving. Does NOT touch the DB. |
 | `GET` | `/readyz` | Readiness probe — pings the DB. Returns 200 `{"status":"ready"}` when the DB is reachable, 503 `{"status":"unready"}` otherwise. |
-
-### Documentation
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/docs/openapi.yaml` | OpenAPI 3.0.3 specification (YAML) |
-| `GET` | `/api/docs` | Redirect to Swagger UI |
 
 ### Households
 
@@ -732,8 +723,7 @@ to recover.
   `/readyz` returns `503` (the readiness probe pings the DB on every
   request); the BR-04 worker logs `cycle failed: ...` and increments
   `worker_cycles_failed_total`.
-- **What still works:** `/health` (liveness) and `/api/version` —
-  neither touches the DB. `/metrics` continues to scrape.
+- **What still works:** `/health` (liveness) and `/metrics` continue to scrape.
 - **Recovery:** restore Postgres → `/readyz` flips green within one
   request; the worker self-heals on the next tick (no manual restart
   needed). The HTTP server does not need to be bounced.

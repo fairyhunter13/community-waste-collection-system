@@ -26,20 +26,10 @@ import (
 	"github.com/fairyhunter13/community-waste-collection-system/internal/worker"
 )
 
-// Build-time injected via -ldflags "-X main.version=... -X main.commit=...
-// -X main.buildDate=...". Empty when built with plain `go run`.
-var (
-	version   string
-	commit    string
-	buildDate string
-)
-
 func main() {
 	cfg := config.Load()
 	logger := observability.NewLogger(cfg)
 	slog.SetDefault(logger)
-
-	handler.SetVersionInfo(version, commit, buildDate)
 
 	if err := cfg.Validate(); err != nil {
 		logger.Error("invalid configuration", "error", err)
