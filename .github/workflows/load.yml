@@ -37,7 +37,7 @@ jobs:
           cp .env.example .env
           sed -i 's|DATABASE_URL=.*|DATABASE_URL=postgres://postgres:postgres@postgres:5432/waste_collection?sslmode=disable|' .env
           sed -i 's|S3_ENDPOINT=.*|S3_ENDPOINT=http://minio:9000|' .env
-          sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318|' .env
+          sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318|' .env
           echo "APP_ENV=ci" >> .env
           echo "RATE_LIMIT_RPS=200" >> .env
           echo "RATE_LIMIT_BURST=200" >> .env
@@ -45,7 +45,7 @@ jobs:
       - name: Start infrastructure
         run: |
           docker compose -f deployments/docker-compose.yml up --build -d \
-            postgres minio otel-collector
+            postgres minio jaeger
 
       - name: Wait for postgres
         run: |
