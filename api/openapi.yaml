@@ -22,6 +22,8 @@ servers:
   - url: http://localhost:8080
     description: Local development server
 
+security: []
+
 tags:
   - name: Households
     description: Household registration and management
@@ -54,8 +56,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HouseholdResponse'
+              example:
+                success: true
+                data:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  owner_name: "Budi Santoso"
+                  address: "Jl. Merdeka No. 5, Jakarta"
+                  created_at: "2026-06-07T08:14:21Z"
+                  updated_at: "2026-06-07T08:14:21Z"
         '400':
           $ref: '#/components/responses/ValidationError'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -73,6 +85,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HouseholdListResponse'
+              example:
+                success: true
+                data:
+                  - id: "550e8400-e29b-41d4-a716-446655440000"
+                    owner_name: "Budi Santoso"
+                    address: "Jl. Merdeka No. 5, Jakarta"
+                    created_at: "2026-06-07T08:14:21Z"
+                    updated_at: "2026-06-07T08:14:21Z"
+                meta:
+                  page: 1
+                  per_page: 20
+                  total: 1
+                  total_pages: 1
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -90,6 +115,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HouseholdResponse'
+              example:
+                success: true
+                data:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  owner_name: "Budi Santoso"
+                  address: "Jl. Merdeka No. 5, Jakarta"
+                  created_at: "2026-06-07T08:14:21Z"
+                  updated_at: "2026-06-07T08:14:21Z"
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -142,10 +175,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PickupResponse'
+              example:
+                success: true
+                data:
+                  id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  household_id: "550e8400-e29b-41d4-a716-446655440000"
+                  type: "plastic"
+                  status: "pending"
+                  pickup_date: null
+                  safety_check: false
+                  created_at: "2026-06-07T08:14:21Z"
+                  updated_at: "2026-06-07T08:14:21Z"
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
         '422':
           $ref: '#/components/responses/BusinessRuleViolation'
         '429':
@@ -178,6 +224,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PickupListResponse'
+              example:
+                success: true
+                data:
+                  - id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    household_id: "550e8400-e29b-41d4-a716-446655440000"
+                    type: "plastic"
+                    status: "pending"
+                    pickup_date: null
+                    safety_check: false
+                    created_at: "2026-06-07T08:14:21Z"
+                    updated_at: "2026-06-07T08:14:21Z"
+                meta:
+                  page: 1
+                  per_page: 20
+                  total: 1
+                  total_pages: 1
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -209,6 +271,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PickupResponse'
+              example:
+                success: true
+                data:
+                  id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  household_id: "550e8400-e29b-41d4-a716-446655440000"
+                  type: "plastic"
+                  status: "scheduled"
+                  pickup_date: "2026-06-10T09:00:00Z"
+                  safety_check: false
+                  created_at: "2026-06-07T08:14:21Z"
+                  updated_at: "2026-06-07T09:00:00Z"
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -237,6 +310,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PickupResponse'
+              example:
+                success: true
+                data:
+                  id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  household_id: "550e8400-e29b-41d4-a716-446655440000"
+                  type: "plastic"
+                  status: "completed"
+                  pickup_date: "2026-06-10T09:00:00Z"
+                  safety_check: false
+                  created_at: "2026-06-07T08:14:21Z"
+                  updated_at: "2026-06-10T09:00:00Z"
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -258,6 +342,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PickupResponse'
+              example:
+                success: true
+                data:
+                  id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  household_id: "550e8400-e29b-41d4-a716-446655440000"
+                  type: "organic"
+                  status: "canceled"
+                  pickup_date: null
+                  safety_check: false
+                  created_at: "2026-06-07T08:14:21Z"
+                  updated_at: "2026-06-07T10:00:00Z"
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -287,6 +382,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentResponse'
+              example:
+                success: true
+                data:
+                  id: "880e8400-e29b-41d4-a716-446655440002"
+                  household_id: "550e8400-e29b-41d4-a716-446655440000"
+                  waste_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  amount: "50000.00"
+                  status: "pending"
+                  proof_file_url: null
+                  payment_date: null
+                  created_at: "2026-06-07T08:14:21Z"
+                  updated_at: "2026-06-07T08:14:21Z"
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -331,6 +438,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentListResponse'
+              example:
+                success: true
+                data:
+                  - id: "880e8400-e29b-41d4-a716-446655440002"
+                    household_id: "550e8400-e29b-41d4-a716-446655440000"
+                    waste_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    amount: "50000.00"
+                    status: "pending"
+                    proof_file_url: null
+                    payment_date: null
+                    created_at: "2026-06-07T08:14:21Z"
+                    updated_at: "2026-06-07T08:14:21Z"
+                meta:
+                  page: 1
+                  per_page: 20
+                  total: 1
+                  total_pages: 1
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -365,6 +489,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentResponse'
+              example:
+                success: true
+                data:
+                  id: "880e8400-e29b-41d4-a716-446655440002"
+                  household_id: "550e8400-e29b-41d4-a716-446655440000"
+                  waste_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  amount: "50000.00"
+                  status: "paid"
+                  proof_file_url: "http://localhost:9000/waste-proofs/proof.jpg"
+                  payment_date: "2026-06-07T09:00:00Z"
+                  created_at: "2026-06-07T08:14:21Z"
+                  updated_at: "2026-06-07T09:00:00Z"
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -385,6 +521,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WasteSummaryResponse'
+              example:
+                success: true
+                data:
+                  by_type:
+                    - type: "plastic"
+                      total: 7
+                      by_status:
+                        pending: 2
+                        completed: 5
+                    - type: "organic"
+                      total: 3
+                      by_status:
+                        pending: 2
+                        canceled: 1
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -401,6 +551,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentSummaryResponse'
+              example:
+                success: true
+                data:
+                  by_status:
+                    - status: "pending"
+                      count: 3
+                      total_amount: "150000.00"
+                    - status: "paid"
+                      count: 12
+                      total_amount: "600000.00"
+                    - status: "failed"
+                      count: 1
+                      total_amount: "50000.00"
+                  total_revenue: "600000.00"
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -418,6 +582,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HouseholdHistoryResponse'
+              example:
+                success: true
+                data:
+                  household:
+                    id: "550e8400-e29b-41d4-a716-446655440000"
+                    owner_name: "Budi Santoso"
+                    address: "Jl. Merdeka No. 5, Jakarta"
+                    created_at: "2026-06-07T08:14:21Z"
+                    updated_at: "2026-06-07T08:14:21Z"
+                  pickups:
+                    - id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                      type: "plastic"
+                      status: "completed"
+                      pickup_date: "2026-06-10T09:00:00Z"
+                  payments:
+                    - id: "880e8400-e29b-41d4-a716-446655440002"
+                      amount: "50000.00"
+                      status: "paid"
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -848,6 +1030,27 @@ components:
         total_pages:
           type: integer
 
+    ErrorMeta:
+      type: object
+      nullable: true
+      description: |
+        Trace correlation metadata attached to every error response when the
+        OpenTelemetry span context is active. Paste any of these IDs into the
+        Grafana "Logs and Traces" dashboard to filter logs for this request.
+      properties:
+        request_id:
+          type: string
+          description: Unique request identifier (X-Request-Id header value)
+          example: "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+        trace_id:
+          type: string
+          description: OTel trace ID (32 hex chars)
+          example: "0000000000000000deadbeefcafebabe"
+        span_id:
+          type: string
+          description: OTel span ID (16 hex chars)
+          example: "0102030405060708"
+
     ErrorResponse:
       type: object
       properties:
@@ -859,8 +1062,12 @@ components:
           properties:
             code:
               type: string
+              example: VALIDATION_ERROR
             message:
               type: string
+              example: "owner_name is required"
+        meta:
+          $ref: '#/components/schemas/ErrorMeta'
 
   responses:
     ValidationError:
@@ -874,6 +1081,10 @@ components:
             error:
               code: VALIDATION_ERROR
               message: "owner_name is required"
+            meta:
+              request_id: "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+              trace_id: "0000000000000000deadbeefcafebabe"
+              span_id: "0102030405060708"
 
     NotFound:
       description: Resource not found
@@ -886,6 +1097,10 @@ components:
             error:
               code: NOT_FOUND
               message: "household not found"
+            meta:
+              request_id: "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+              trace_id: "0000000000000000deadbeefcafebabe"
+              span_id: "0102030405060708"
 
     Conflict:
       description: Business state conflict
@@ -898,6 +1113,10 @@ components:
             error:
               code: CONFLICT
               message: "household has a pending payment"
+            meta:
+              request_id: "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+              trace_id: "0000000000000000deadbeefcafebabe"
+              span_id: "0102030405060708"
 
     BusinessRuleViolation:
       description: Business rule violated
@@ -910,6 +1129,10 @@ components:
             error:
               code: BUSINESS_RULE_VIOLATION
               message: "electronic pickup requires safety_check to be true before scheduling"
+            meta:
+              request_id: "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+              trace_id: "0000000000000000deadbeefcafebabe"
+              span_id: "0102030405060708"
 
     RateLimited:
       description: Rate limit exceeded
@@ -921,7 +1144,27 @@ components:
             success: false
             error:
               code: RATE_LIMITED
-              message: "rate limit exceeded"
+              message: "too many requests"
+            meta:
+              request_id: "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+              trace_id: "0000000000000000deadbeefcafebabe"
+              span_id: "0102030405060708"
+
+    RequestTooLarge:
+      description: Request body exceeds the size limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: REQUEST_TOO_LARGE
+              message: "request body exceeds size limit"
+            meta:
+              request_id: "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+              trace_id: "0000000000000000deadbeefcafebabe"
+              span_id: "0102030405060708"
 
     InternalError:
       description: Internal server error
@@ -934,3 +1177,7 @@ components:
             error:
               code: INTERNAL_ERROR
               message: "internal server error"
+            meta:
+              request_id: "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+              trace_id: "0000000000000000deadbeefcafebabe"
+              span_id: "0102030405060708"
