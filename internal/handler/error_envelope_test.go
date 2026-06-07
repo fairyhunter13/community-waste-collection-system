@@ -17,9 +17,8 @@ const wantValidationErrorCode = "VALIDATION_ERROR"
 // TestErrorEnvelopeShape_AllValidationErrorsMatchContract proves that every
 // write endpoint that accepts a JSON body produces the documented error
 // envelope `{success:false, error:{code, message}}` for VALIDATION_ERROR
-// outcomes. A reviewer who depends on the envelope shape (e.g. a client SDK
-// that switches on `error.code`) must never see a deviation between
-// endpoints.
+// outcomes. Any client SDK that switches on `error.code` must never see a
+// deviation between endpoints.
 func TestErrorEnvelopeShape_AllValidationErrorsMatchContract(t *testing.T) {
 	_, e := newTestHandler(t)
 
