@@ -1,0 +1,115 @@
+name: Load Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'k6 scenario to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - average
+          - stress
+          - spike
+
+concurrency:
+  group: load-tests
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    name: Load Test (${{ github.event.inputs.scenario }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DOCKER_HOST: "unix:///var/run/docker.sock"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env for docker-compose
+        run: |
+          cp .env.example .env
+          sed -i 's|DATABASE_URL=.*|DATABASE_URL=postgres://postgres:postgres@postgres:5432/waste_collection?sslmode=disable|' .env
+          sed -i 's|S3_ENDPOINT=.*|S3_ENDPOINT=http://minio:9000|' .env
+          sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318|' .env
+          echo "APP_ENV=ci" >> .env
+          echo "RATE_LIMIT_RPS=200" >> .env
+          echo "RATE_LIMIT_BURST=200" >> .env
+
+      - name: Start infrastructure
+        run: |
+          docker compose -f deployments/docker-compose.yml up --build -d \
+            postgres minio otel-collector
+
+      - name: Wait for postgres
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose -f deployments/docker-compose.yml exec -T postgres \
+               pg_isready -U postgres -d waste_collection 2>/dev/null; then
+              echo "Postgres ready"; break
+            fi
+            echo "Waiting for postgres ($i/30)..."; sleep 3
+          done
+
+      - name: Run migrations
+        run: |
+          NETWORK=$(docker inspect \
+            "$(docker compose -f deployments/docker-compose.yml ps -q postgres)" \
+            --format='{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' | head -1)
+          docker run --rm \
+            --network "$NETWORK" \
+            -v "$(pwd)/migrations:/migrations" \
+            migrate/migrate:v4.18.1 \
+            -path=/migrations \
+            -database "postgres://postgres:postgres@postgres:5432/waste_collection?sslmode=disable" \
+            up
+
+      - name: Start application
+        run: docker compose -f deployments/docker-compose.yml up --build -d app
+
+      - name: Wait for application
+        run: |
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "Application ready"; break
+            fi
+            echo "Waiting for application ($i/40)..."; sleep 3
+          done
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://pkg.grafana.com/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/grafana.gpg
+          echo "deb [signed-by=/usr/share/keyrings/grafana.gpg] https://apt.grafana.com stable main" \
+            | sudo tee /etc/apt/sources.list.d/grafana.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6
+
+      - name: Run load test
+        run: |
+          k6 run "test/load/${{ github.event.inputs.scenario }}.js" \
+            --env BASE_URL=http://localhost:8080 \
+            --out json=k6-results.json \
+            2>&1 | tee k6-output.txt
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-${{ github.event.inputs.scenario }}-results
+          path: |
+            k6-results.json
+            k6-output.txt
+
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose -f deployments/docker-compose.yml logs --no-color
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f deployments/docker-compose.yml down -v --remove-orphans
