@@ -80,28 +80,6 @@ jobs:
             --format table \
             cwc-scan:ci
 
-  sbom:
-    name: Generate SBOM
-    runs-on: ubuntu-24.04
-    needs: [lint]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Generate CycloneDX SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          path: .
-          format: cyclonedx-json
-          output-file: sbom.cyclonedx.json
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: sbom.cyclonedx.json
-          retention-days: 90
-
   test-unit:
     name: Unit Tests
     runs-on: ubuntu-24.04
