@@ -74,6 +74,7 @@ func main() {
 	e.Use(middleware.RecoverMiddleware(logger))
 	e.Use(middleware.RequestLogger(logger))
 	e.Use(middleware.OtelTrace(cfg.OTELServiceName))
+	e.Use(middleware.RequestMetrics())
 
 	h := handler.New(householdSvc, pickupSvc, paymentSvc, reportSvc, cfg, db)
 	h.RegisterRoutes(e)
