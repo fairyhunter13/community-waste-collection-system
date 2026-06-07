@@ -89,8 +89,57 @@ func New(
 	}
 }
 
+// echoErrorHandler normalises framework-level errors (e.g. body-limit 413,
+// unknown-route 404, method-not-allowed 405) into the same envelope as
+// respondError, so every error response carries success=false, an error.code,
+// and trace meta regardless of where in the stack the error originates.
+func (h *Handler) echoErrorHandler(err error, c echo.Context) {
+	if c.Response().Committed {
+		return
+	}
+	code := http.StatusInternalServerError
+	errCode := "INTERNAL_ERROR"
+	message := "internal server error"
+
+	var he *echo.HTTPError
+	if errors.As(err, &he) {
+		code = he.Code
+		switch code {
+		case http.StatusRequestEntityTooLarge:
+			errCode = "REQUEST_TOO_LARGE"
+			message = "request body exceeds size limit"
+		case http.StatusTooManyRequests:
+			errCode = "RATE_LIMITED"
+			message = "too many requests"
+		case http.StatusMethodNotAllowed:
+			errCode = "METHOD_NOT_ALLOWED"
+			message = "method not allowed"
+		case http.StatusNotFound:
+			errCode = "NOT_FOUND"
+			message = "resource not found"
+		default:
+			if msg, ok := he.Message.(string); ok && msg != "" {
+				message = msg
+			}
+		}
+	}
+
+	meta := extractErrorMeta(c)
+	if jsonErr := c.JSON(code, errorResp{
+		Success: false,
+		Error:   errorBody{Code: errCode, Message: message},
+		Meta:    meta,
+	}); jsonErr != nil {
+		observability.FromContext(c.Request().Context()).ErrorContext(
+			c.Request().Context(), "echoErrorHandler: write response failed",
+			slog.Any("err", jsonErr),
+		)
+	}
+}
+
 // RegisterRoutes registers all API routes on the given Echo instance.
 func (h *Handler) RegisterRoutes(e *echo.Echo) {
+	e.HTTPErrorHandler = h.echoErrorHandler
 	e.Use(middleware.RequestID())
 	e.Use(echomw.Secure())
 
