@@ -23,7 +23,7 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker.
   - BR-06 — Payment confirmation requires a multipart proof-of-payment file upload
 - **Per-IP rate limiting** on pickup creation (5 req/s, burst 10) via token bucket
 - **Full-stack observability**: structured JSON logs (slog), distributed tracing (OTel → Jaeger), 14 Prometheus metrics, 2 auto-provisioned Grafana dashboards
-- **Unit test coverage ≥84%** enforced in CI (gate ≥80%); integration tests use real PostgreSQL via testcontainers
+- **Unit test coverage 82.7%** enforced in CI (gate ≥80%); integration tests use real PostgreSQL via testcontainers
 - **OpenAPI 3.0 spec** embedded in the binary and served at `/api/docs/openapi.yaml`
 
 ---
