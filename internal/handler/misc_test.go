@@ -88,5 +88,7 @@ func TestServeSwaggerUI_Returns200HTML(t *testing.T) {
 	e.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), "swagger")
+	body := rec.Body.String()
+	assert.Contains(t, body, "swagger-ui")
+	assert.NotContains(t, body, "petstore.swagger.io", "UI must be self-hosted, not redirect to petstore")
 }

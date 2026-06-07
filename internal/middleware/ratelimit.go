@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/time/rate"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/config"
@@ -46,12 +47,35 @@ func RateLimiter(cfg *config.Config) echo.MiddlewareFunc {
 				observability.RateLimitActiveClients.Inc()
 			}
 			if !l.limiter.Allow() {
-				return c.JSON(http.StatusTooManyRequests, map[string]any{
-					"success": false,
-					"error": map[string]string{
-						"code":    "RATE_LIMITED",
-						"message": "too many requests",
-					},
+				type errBody struct {
+					Code    string `json:"code"`
+					Message string `json:"message"`
+				}
+				type errMeta struct {
+					RequestID string `json:"request_id,omitempty"`
+					TraceID   string `json:"trace_id,omitempty"`
+					SpanID    string `json:"span_id,omitempty"`
+				}
+				type errResp struct {
+					Success bool     `json:"success"`
+					Error   errBody  `json:"error"`
+					Meta    *errMeta `json:"meta,omitempty"`
+				}
+				var meta *errMeta
+				sc := trace.SpanFromContext(c.Request().Context()).SpanContext()
+				if sc.IsValid() {
+					meta = &errMeta{
+						TraceID: sc.TraceID().String(),
+						SpanID:  sc.SpanID().String(),
+					}
+					if rid := c.Response().Header().Get("X-Request-Id"); rid != "" {
+						meta.RequestID = rid
+					}
+				}
+				return c.JSON(http.StatusTooManyRequests, errResp{
+					Success: false,
+					Error:   errBody{Code: "RATE_LIMITED", Message: "too many requests"},
+					Meta:    meta,
 				})
 			}
 			return next(c)
