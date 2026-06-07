@@ -17,15 +17,17 @@ import (
 
 type PaymentServiceSuite struct {
 	suite.Suite
-	repo    *mocks.PaymentRepository
-	storage *mocks.StorageService
-	svc     domain.PaymentService
+	repo       *mocks.PaymentRepository
+	pickupRepo *mocks.PickupRepository
+	storage    *mocks.StorageService
+	svc        domain.PaymentService
 }
 
 func (s *PaymentServiceSuite) SetupTest() {
 	s.repo = mocks.NewPaymentRepository(s.T())
+	s.pickupRepo = mocks.NewPickupRepository(s.T())
 	s.storage = mocks.NewStorageService(s.T())
-	s.svc = service.NewPaymentService(s.repo, s.storage)
+	s.svc = service.NewPaymentService(s.repo, s.pickupRepo, s.storage)
 }
 
 func TestPaymentService(t *testing.T) {
@@ -33,17 +35,39 @@ func TestPaymentService(t *testing.T) {
 }
 
 func (s *PaymentServiceSuite) TestCreate_Success() {
+	hid := uuid.New()
+	wid := uuid.New()
+	s.pickupRepo.On("FindByID", mock.Anything, wid).Return(&domain.WastePickup{
+		ID:          wid,
+		HouseholdID: hid,
+	}, nil)
 	s.repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Payment")).Return(nil)
 
 	req := domain.CreatePaymentRequest{
-		HouseholdID: uuid.New(),
-		WasteID:     uuid.New(),
+		HouseholdID: hid,
+		WasteID:     wid,
 		Amount:      decimal.RequireFromString("50000.00"),
 	}
 	got, err := s.svc.Create(s.T().Context(), req)
 	s.Require().NoError(err)
 	s.Equal(domain.PaymentStatusPending, got.Status)
 	s.Equal(decimal.RequireFromString("50000.00"), got.Amount)
+}
+
+func (s *PaymentServiceSuite) TestCreate_CrossHousehold_Rejected() {
+	wid := uuid.New()
+	s.pickupRepo.On("FindByID", mock.Anything, wid).Return(&domain.WastePickup{
+		ID:          wid,
+		HouseholdID: uuid.New(), // different household
+	}, nil)
+
+	req := domain.CreatePaymentRequest{
+		HouseholdID: uuid.New(), // foreign household
+		WasteID:     wid,
+		Amount:      decimal.RequireFromString("50000.00"),
+	}
+	_, err := s.svc.Create(s.T().Context(), req)
+	s.Require().ErrorIs(err, domain.ErrBusinessRule)
 }
 
 func (s *PaymentServiceSuite) TestConfirm_BR06_NilFileReturnsValidationError() {
@@ -98,24 +122,34 @@ func (s *PaymentServiceSuite) TestConfirm_StorageError_Propagates() {
 }
 
 func (s *PaymentServiceSuite) TestCreate_RepoReturnsNotFound_Propagates() {
+	hid := uuid.New()
+	wid := uuid.New()
+	s.pickupRepo.On("FindByID", mock.Anything, wid).Return(&domain.WastePickup{
+		ID: wid, HouseholdID: hid,
+	}, nil)
 	s.repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Payment")).
 		Return(fmt.Errorf("household not found: %w", domain.ErrNotFound))
 
 	_, err := s.svc.Create(s.T().Context(), domain.CreatePaymentRequest{
-		HouseholdID: uuid.New(),
-		WasteID:     uuid.New(),
+		HouseholdID: hid,
+		WasteID:     wid,
 		Amount:      decimal.RequireFromString("50000.00"),
 	})
 	s.Require().ErrorIs(err, domain.ErrNotFound)
 }
 
 func (s *PaymentServiceSuite) TestCreate_RepoReturnsConflict_Propagates() {
+	hid := uuid.New()
+	wid := uuid.New()
+	s.pickupRepo.On("FindByID", mock.Anything, wid).Return(&domain.WastePickup{
+		ID: wid, HouseholdID: hid,
+	}, nil)
 	s.repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Payment")).
 		Return(fmt.Errorf("payment for this pickup already exists: %w", domain.ErrConflict))
 
 	_, err := s.svc.Create(s.T().Context(), domain.CreatePaymentRequest{
-		HouseholdID: uuid.New(),
-		WasteID:     uuid.New(),
+		HouseholdID: hid,
+		WasteID:     wid,
 		Amount:      decimal.RequireFromString("50000.00"),
 	})
 	s.Require().ErrorIs(err, domain.ErrConflict)

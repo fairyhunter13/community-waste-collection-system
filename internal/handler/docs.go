@@ -13,17 +13,31 @@ func (h *Handler) ServeOpenAPISpec(c echo.Context) error {
 	return c.Blob(http.StatusOK, "application/yaml; charset=utf-8", apispec.Spec)
 }
 
-// ServeSwaggerUI redirects the browser to the Swagger UI CDN pre-loaded with our spec.
+// ServeSwaggerUI serves a self-contained Swagger UI page that loads the
+// OpenAPI spec directly from this host — no external redirects required.
 func (h *Handler) ServeSwaggerUI(c echo.Context) error {
 	specURL := c.Scheme() + "://" + c.Request().Host + "/api/docs/openapi.yaml"
 	html := `<!DOCTYPE html>
-<html>
-<head><title>Community Waste Collection API — Docs</title></head>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Community Waste Collection API — Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css">
+</head>
 <body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
 <script>
-window.location = "https://petstore.swagger.io/?url=` + specURL + `";
+window.onload = function() {
+  SwaggerUIBundle({
+    url: "` + specURL + `",
+    dom_id: '#swagger-ui',
+    presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+    layout: "BaseLayout",
+    deepLinking: true
+  });
+};
 </script>
-<p>Redirecting to Swagger UI… or <a href="https://petstore.swagger.io/?url=` + specURL + `">click here</a>.</p>
 </body>
 </html>`
 	return c.HTML(http.StatusOK, html)

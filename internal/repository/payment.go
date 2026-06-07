@@ -208,6 +208,7 @@ func (r *paymentRepo) List(ctx context.Context, filter domain.PaymentFilter) ([]
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "paymentRepo.List.count", err)
 		return nil, 0, fmt.Errorf("count payments: %w", domain.ErrInternalFailure)
 	}
 
@@ -226,6 +227,7 @@ func (r *paymentRepo) List(ctx context.Context, filter domain.PaymentFilter) ([]
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "paymentRepo.List", err)
 		return nil, 0, fmt.Errorf("list payments: %w", domain.ErrInternalFailure)
 	}
 
@@ -295,6 +297,7 @@ func (r *paymentRepo) WasteSummary(ctx context.Context) ([]domain.WasteTypeSumma
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "paymentRepo.WasteSummary", err)
 		return nil, fmt.Errorf("waste summary: %w", domain.ErrInternalFailure)
 	}
 
@@ -348,6 +351,7 @@ func (r *paymentRepo) PaymentSummary(ctx context.Context) (*domain.PaymentSummar
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "paymentRepo.PaymentSummary", err)
 		return nil, fmt.Errorf("payment summary: %w", domain.ErrInternalFailure)
 	}
 
@@ -406,6 +410,7 @@ func (r *paymentRepo) HouseholdHistory(ctx context.Context, householdID uuid.UUI
 		}
 		if err != nil {
 			observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
+			logDBErr(ctx, "paymentRepo.HouseholdHistory.household", err)
 			return fmt.Errorf("household history: %w", domain.ErrInternalFailure)
 		}
 		return nil
@@ -420,6 +425,7 @@ func (r *paymentRepo) HouseholdHistory(ctx context.Context, householdID uuid.UUI
 		observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(t).Seconds())
 		if err != nil {
 			observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
+			logDBErr(ctx, "paymentRepo.HouseholdHistory.pickups", err)
 			return fmt.Errorf("household history pickups: %w", domain.ErrInternalFailure)
 		}
 		return nil
@@ -434,6 +440,7 @@ func (r *paymentRepo) HouseholdHistory(ctx context.Context, householdID uuid.UUI
 		observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(t).Seconds())
 		if err != nil {
 			observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
+			logDBErr(ctx, "paymentRepo.HouseholdHistory.payments", err)
 			return fmt.Errorf("household history payments: %w", domain.ErrInternalFailure)
 		}
 		return nil

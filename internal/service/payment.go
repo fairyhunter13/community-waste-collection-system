@@ -16,13 +16,14 @@ import (
 )
 
 type paymentService struct {
-	repo    domain.PaymentRepository
-	storage domain.StorageService
+	repo       domain.PaymentRepository
+	pickupRepo domain.PickupRepository
+	storage    domain.StorageService
 }
 
-// NewPaymentService creates a new PaymentService backed by the given repository and storage.
-func NewPaymentService(repo domain.PaymentRepository, storage domain.StorageService) domain.PaymentService {
-	return &paymentService{repo: repo, storage: storage}
+// NewPaymentService creates a new PaymentService backed by the given repositories and storage.
+func NewPaymentService(repo domain.PaymentRepository, pickupRepo domain.PickupRepository, storage domain.StorageService) domain.PaymentService {
+	return &paymentService{repo: repo, pickupRepo: pickupRepo, storage: storage}
 }
 
 func (s *paymentService) Create(ctx context.Context, req domain.CreatePaymentRequest) (*domain.Payment, error) {
@@ -39,6 +40,21 @@ func (s *paymentService) Create(ctx context.Context, req domain.CreatePaymentReq
 		slog.String("household_id", req.HouseholdID.String()),
 		slog.String("waste_id", req.WasteID.String()),
 	)
+
+	// Guard: the pickup must belong to the same household as the payment request.
+	pickup, err := s.pickupRepo.FindByID(ctx, req.WasteID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	if pickup.HouseholdID != req.HouseholdID {
+		log.WarnContext(ctx, "cross-household payment rejected",
+			slog.String("pickup_household_id", pickup.HouseholdID.String()),
+			slog.String("request_household_id", req.HouseholdID.String()),
+		)
+		return nil, fmt.Errorf("waste pickup does not belong to the specified household: %w", domain.ErrBusinessRule)
+	}
 
 	payment := &domain.Payment{
 		HouseholdID: req.HouseholdID,

@@ -97,6 +97,7 @@ func (r *pickupRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.WasteP
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.FindByID", err)
 		return nil, fmt.Errorf("find pickup: %w", domain.ErrInternalFailure)
 	}
 	span.SetStatus(codes.Ok, "")
@@ -148,6 +149,7 @@ func (r *pickupRepo) List(ctx context.Context, filter domain.PickupFilter) ([]*d
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.List.count", err)
 		return nil, 0, fmt.Errorf("count pickups: %w", domain.ErrInternalFailure)
 	}
 
@@ -166,6 +168,7 @@ func (r *pickupRepo) List(ctx context.Context, filter domain.PickupFilter) ([]*d
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.List", err)
 		return nil, 0, fmt.Errorf("list pickups: %w", domain.ErrInternalFailure)
 	}
 
@@ -216,6 +219,7 @@ func (r *pickupRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status doma
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "UPDATE").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.UpdateStatus", err)
 		return fmt.Errorf("update pickup status: %w", domain.ErrInternalFailure)
 	}
 	n, _ := result.RowsAffected()
@@ -252,6 +256,7 @@ func (r *pickupRepo) Schedule(ctx context.Context, id uuid.UUID, date time.Time)
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "UPDATE").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.Schedule", err)
 		return fmt.Errorf("schedule pickup: %w", domain.ErrInternalFailure)
 	}
 	n, _ := result.RowsAffected()
@@ -354,6 +359,7 @@ func (r *pickupRepo) CancelIfCancellable(ctx context.Context, id uuid.UUID) (boo
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "UPDATE").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.CancelIfCancellable", err)
 		return false, fmt.Errorf("cancel pickup: %w", domain.ErrInternalFailure)
 	}
 	n, _ := result.RowsAffected()
@@ -383,6 +389,7 @@ func (r *pickupRepo) HasPendingPaymentForHousehold(ctx context.Context, househol
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		logDBErr(ctx, "pickupRepo.HasPendingPaymentForHousehold", err)
 		return false, fmt.Errorf("check pending payment: %w", domain.ErrInternalFailure)
 	}
 	span.SetAttributes(attribute.Bool("has_pending", exists))

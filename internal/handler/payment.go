@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
+	"github.com/fairyhunter13/community-waste-collection-system/internal/observability"
 )
 
 // allowedProofMIME is the closed allowlist of Content-Type values the proof
@@ -20,7 +21,6 @@ import (
 // is the contract clients agree to.
 var allowedProofMIME = map[string]bool{
 	"image/jpeg":      true,
-	"image/jpg":       true,
 	"image/png":       true,
 	"application/pdf": true,
 }
@@ -44,7 +44,10 @@ func (h *Handler) CreatePayment(c echo.Context) error {
 
 // ListPayments handles GET /api/payments with optional filters.
 func (h *Handler) ListPayments(c echo.Context) error {
-	page, perPage := paginationParams(c)
+	page, perPage, err := paginationParams(c)
+	if err != nil {
+		return err
+	}
 	filter := domain.PaymentFilter{Page: page, PerPage: perPage}
 
 	span := trace.SpanFromContext(c.Request().Context())
@@ -109,7 +112,11 @@ func (h *Handler) ConfirmPayment(c echo.Context) error {
 
 	file, header, err := c.Request().FormFile("proof")
 	if err != nil {
-		slog.WarnContext(c.Request().Context(), "proof file upload rejected", "error", err.Error())
+		observability.FromContext(c.Request().Context()).WarnContext(c.Request().Context(),
+			"proof file upload rejected",
+			slog.String("op", "ConfirmPayment.upload"),
+			slog.Any("err", err),
+		)
 		var maxErr *http.MaxBytesError
 		if errors.As(err, &maxErr) {
 			return respondError(c, http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE",

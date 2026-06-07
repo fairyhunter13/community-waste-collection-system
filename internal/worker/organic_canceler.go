@@ -39,12 +39,18 @@ func (w *OrganicCanceler) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
-	slog.Default().Info("organic canceler started", "interval", w.interval, "cutoff", w.cutoff)
+	observability.FromContext(ctx).InfoContext(ctx, "organic canceler started",
+		slog.String("worker", "organic_canceler"),
+		slog.String("interval", w.interval.String()),
+		slog.String("cutoff", w.cutoff.String()),
+	)
 
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Default().Info("organic canceler stopping")
+			observability.FromContext(ctx).InfoContext(ctx, "organic canceler stopping",
+				slog.String("worker", "organic_canceler"),
+			)
 			return
 		case <-ticker.C:
 			w.runWithRecover(ctx)
@@ -57,7 +63,10 @@ func (w *OrganicCanceler) Start(ctx context.Context) {
 func (w *OrganicCanceler) runWithRecover(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			slog.Default().Error("organic canceler panic recovered", slog.Any("panic", r))
+			observability.FromContext(ctx).ErrorContext(ctx, "organic canceler panic recovered",
+				slog.String("worker", "organic_canceler"),
+				slog.Any("panic", r),
+			)
 			observability.WorkerCyclesFailedTotal.Inc()
 		}
 	}()

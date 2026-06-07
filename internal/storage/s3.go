@@ -5,12 +5,15 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
@@ -40,6 +43,9 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			cfg.S3AccessKey, cfg.S3SecretKey, "",
 		)),
+		awsconfig.WithHTTPClient(&http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		}),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("load aws config: %w", err)
@@ -72,6 +78,11 @@ func (c *S3Client) EnsureBucket(ctx context.Context) error {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		observability.FromContext(ctx).ErrorContext(ctx, "ensure S3 bucket failed",
+			slog.String("op", "S3.EnsureBucket"),
+			slog.String("bucket", c.bucket),
+			slog.Any("err", err),
+		)
 		return fmt.Errorf("create bucket %s: %w", c.bucket, err)
 	}
 	return nil
@@ -102,6 +113,12 @@ func (c *S3Client) Upload(ctx context.Context, key string, r io.Reader, size int
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		observability.S3ErrorsTotal.Inc()
+		observability.FromContext(ctx).ErrorContext(ctx, "S3 upload failed",
+			slog.String("op", "S3.Upload"),
+			slog.String("bucket", c.bucket),
+			slog.String("key", key),
+			slog.Any("err", err),
+		)
 		return "", fmt.Errorf("s3 upload %s: %w", key, domain.ErrInternalFailure)
 	}
 	observability.S3UploadBytesTotal.Add(float64(size))
