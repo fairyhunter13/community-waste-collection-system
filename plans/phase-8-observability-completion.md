@@ -15,9 +15,9 @@ to a Loki query to a Jaeger trace in under thirty seconds, and every log line
 should carry enough context to answer "which file emitted this?" without opening
 the source.
 
-The PDF brief and `REQUIREMENTS_RAW.md` remain gitignored. No company name,
-email, address, or phone number from the backend engineering test brief is
-permitted in any committed file.
+The requirements PDF and `REQUIREMENTS_RAW.md` remain gitignored. No
+identifying information from the requirements document is permitted in any
+committed file.
 
 ---
 

@@ -4,14 +4,10 @@
 
 # Community Waste Collection API
 
-> **Backend engineering test deliverable** — Community Waste Collection API.  
-> Implements the supplied brief end-to-end: **16 REST endpoints**, **6 business rules** (BR-01 .. BR-06), and **6 production-readiness requirements** (TR-1 .. TR-6).  
-> Traceability matrix: [`plans/phase-7-final-verification.md`](plans/phase-7-final-verification.md)
-
 A RESTful API service for managing community household waste collection,
-pickup scheduling, and payment processing.
+pickup scheduling, and proof-of-payment processing.
 
-Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker.
+Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
 
 ---
 
@@ -704,8 +700,8 @@ sequenceDiagram
 ### Sample JSON Log Line
 
 Every request emits a structured slog line carrying both the OTel trace
-identifier and the request id, so reviewers can pivot from a log line to
-the trace in Jaeger or vice versa:
+identifier and the request id, enabling direct correlation between a log line
+and the full trace in Jaeger:
 
 ```json
 {

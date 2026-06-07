@@ -373,7 +373,7 @@ perf(repository): add partial index for organic pending pickup query
 
 ## 4. Delivery Checklist
 
-Work through this checklist before submission. Every item must be checked.
+Work through this checklist before release. Every item must be checked.
 
 ### Functionality
 - [x] `POST /api/households` → creates household, returns 201

@@ -6,7 +6,7 @@
 
 The service needs observable Rate / Error / Duration metrics for HTTP
 and database layers, plus business-domain instruments for the worker
-and BR-04 outcomes. Reviewers should see populated dashboards in a
+and BR-04 outcomes. New contributors should see populated dashboards in a
 single `docker compose up` boot, without manual UI clicks.
 
 ## Decision
