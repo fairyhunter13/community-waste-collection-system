@@ -154,6 +154,68 @@
       ],
       "title": "Logs filtered by span_id  (type a span ID in the variable above)",
       "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 36 },
+      "id": 6,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "editorMode": "code",
+          "expr": "{service=\"waste-api\"} | json | request_id=~\"${request_id:regex}\"",
+          "legendFormat": "",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Logs filtered by request_id  (type a Request-ID in the variable above)",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 46 },
+      "id": 7,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "editorMode": "code",
+          "expr": "{service=\"waste-api\"} | json | level=~\"ERROR|WARN\" | source_file=~\"${source_file:regex}\"",
+          "legendFormat": "",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Error & Warning logs by source file  (type a file name e.g. service/pickup.go)",
+      "type": "logs"
     }
   ],
   "refresh": "30s",
@@ -184,6 +246,28 @@
         "type": "textbox"
       },
       {
+        "current": { "selected": false, "text": "", "value": "" },
+        "description": "Filter log panels by request ID",
+        "hide": 0,
+        "label": "request_id",
+        "name": "request_id",
+        "options": [],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": { "selected": false, "text": "", "value": "" },
+        "description": "Filter logs by source file (e.g. service/pickup.go)",
+        "hide": 0,
+        "label": "source_file",
+        "name": "source_file",
+        "options": [],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
         "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
         "datasource": { "type": "loki", "uid": "loki" },
         "definition": "label_values({service=\"waste-api\"}, level)",
@@ -207,5 +291,5 @@
   "timezone": "browser",
   "title": "Logs and Traces",
   "uid": "logs-and-traces",
-  "version": 1
+  "version": 2
 }
