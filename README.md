@@ -37,7 +37,7 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
 - [API Reference](#api-reference)
 - [Observability](#observability)
 - [Architecture](#architecture)
-- [Architecture Decisions](#architecture-decisions) — [ADR index](docs/adr/)
+- [Architecture Decisions](#architecture-decisions)
 
 ## Table of Contents
 
@@ -798,7 +798,7 @@ to recover.
 | Technical requirements (TR-1 .. TR-6) | 6/6 | ✅ All met |
 | Deliverables | 5/5 | ✅ All present |
 
-Full per-requirement traceability (file paths + test names) is in [`plans/phase-7-final-verification.md`](plans/phase-7-final-verification.md).
+Per-requirement traceability (file paths + test names) is tracked in `plans/architecture.md`.
 
 ### Business rules at a glance
 
@@ -826,17 +826,11 @@ Full per-requirement traceability (file paths + test names) is in [`plans/phase-
 
 ## Architecture Decisions
 
-Eight ADRs document the load-bearing decisions in this codebase. They
-live under [`docs/adr/`](docs/adr/) — each is a short MADR-style record
-with context, decision, and consequences.
-
-| # | Decision |
-|---|----------|
-| [0001](docs/adr/0001-no-orm.md) | No ORM — raw SQL via `sqlx` |
-| [0002](docs/adr/0002-sentinel-errors.md) | Sentinel errors for domain outcomes |
-| [0003](docs/adr/0003-shopspring-decimal.md) | `shopspring/decimal` for monetary amounts |
-| [0004](docs/adr/0004-per-ip-rate-limit.md) | Per-IP token bucket rate limiting |
-| [0005](docs/adr/0005-worker-context-cancellation.md) | Background worker with context cancellation |
-| [0006](docs/adr/0006-business-rules-in-service-layer.md) | Business rules enforced in the service layer |
-| [0007](docs/adr/0007-opentelemetry.md) | OpenTelemetry — vendor-neutral distributed tracing |
-| [0008](docs/adr/0008-prometheus-red-metrics.md) | Prometheus + Grafana — RED metrics with auto-provisioning |
+- **No ORM — raw SQL via `sqlx`**: Full control over queries and query plans. The small schema (3 entities, 5 migrations) doesn't need a query builder; the BR invariants are easier to audit in plain SQL.
+- **Sentinel errors for domain outcomes**: Five typed errors in `internal/domain/errors.go` (`ErrNotFound`, `ErrConflict`, `ErrBusinessRule`, `ErrValidation`, `ErrRateLimit`) let handlers map outcomes to HTTP status codes without leaking repository or SQL types into the wire contract.
+- **`shopspring/decimal` for monetary amounts**: Eliminates float rounding errors. Amounts stored as `NUMERIC(12,2)` in PostgreSQL and marshalled as quoted JSON strings (`"50000.00"`).
+- **Per-IP token bucket rate limiting**: `golang.org/x/time/rate` in a `sync.Map` keyed on `X-Real-IP`/`RemoteAddr`. Zero extra infrastructure; configurable via `RATE_LIMIT_RPS` and `RATE_LIMIT_BURST` env vars.
+- **Background worker with context cancellation**: `OrganicCanceler` ticks on a configurable interval. Shutdown sends a context cancel; the worker drains its current cycle and exits within `WorkerShutdownTimeout` so `SIGTERM` never leaves the process in a half-cancelled state.
+- **Business rules in the service layer**: Handlers parse and validate input only; repositories are pure data access. All BR-01..BR-06 invariants live in `internal/service/`, including advisory-lock placement (BR-01), `SELECT … FOR UPDATE` atomicity (BR-05), MIME allowlist (BR-06).
+- **OpenTelemetry for vendor-neutral distributed tracing**: OTLP export to Jaeger for local dev. Every layer creates named child spans (`service.pickup.Create`, `repository.household.FindByID`, etc.) with domain attributes. `trace_id` is injected into every slog line for log/trace correlation.
+- **Prometheus RED metrics with Grafana auto-provisioning**: 14 instruments covering HTTP, DB query duration, business events, worker cycles, and S3 upload latency. Datasources and two dashboards are version-controlled under `deployments/grafana/` and provisioned automatically on `docker compose up`.
