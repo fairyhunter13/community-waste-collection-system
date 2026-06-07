@@ -14,7 +14,7 @@ LDFLAGS    := -w -s \
 
 .DEFAULT_GOAL := help
 
-.PHONY: help all run dev build clean \
+.PHONY: help all run build clean \
         lint fmt vet mocks \
         test test-unit test-integration test-e2e bench perf coverage \
         load load-average \
@@ -34,10 +34,6 @@ all: lint test build
 ## run: run the API locally with `go run`
 run:
 	go run $(CMD)
-
-## dev: hot-reload dev loop (requires air: go install github.com/air-verse/air@latest)
-dev:
-	@air -c .air.toml
 
 ## build: produce ./bin/api with version metadata embedded
 build:
