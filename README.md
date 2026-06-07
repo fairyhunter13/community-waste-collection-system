@@ -1,5 +1,6 @@
 [![CI](https://github.com/fairyhunter13/community-waste-collection-system/actions/workflows/ci.yml/badge.svg)](https://github.com/fairyhunter13/community-waste-collection-system/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/fairyhunter13/community-waste-collection-system/graph/badge.svg)](https://codecov.io/gh/fairyhunter13/community-waste-collection-system)
+[![Coverage](https://img.shields.io/codecov/c/github/fairyhunter13/community-waste-collection-system/main)](https://codecov.io/gh/fairyhunter13/community-waste-collection-system)
 
 # Community Waste Collection API
 
@@ -22,7 +23,7 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker.
   - BR-06 — Payment confirmation requires a multipart proof-of-payment file upload
 - **Per-IP rate limiting** on pickup creation (5 req/s, burst 10) via token bucket
 - **Full-stack observability**: structured JSON logs (slog), distributed tracing (OTel → Jaeger), 14 Prometheus metrics, 2 auto-provisioned Grafana dashboards
-- **Test coverage >80%** enforced in CI; integration tests use real PostgreSQL via testcontainers
+- **Unit test coverage ≥84%** enforced in CI (gate ≥80%); integration tests use real PostgreSQL via testcontainers
 - **OpenAPI 3.0 spec** embedded in the binary and served at `/api/docs/openapi.yaml`
 
 ---
@@ -481,6 +482,7 @@ Error:
 | Prometheus UI | http://localhost:9090 | Query and alert UI |
 | Grafana | http://localhost:3000 | Dashboards (admin/admin) |
 | Jaeger | http://localhost:16686 | Distributed trace search |
+| Loki | http://localhost:3100 | Log aggregation (Promtail → Loki) |
 | pprof | http://localhost:6060/debug/pprof/ | CPU/memory profiling |
 
 ### Prometheus Metrics (14 instruments)
@@ -509,6 +511,46 @@ Error:
 Every request receives a root span created by `otelecho`. All handler, service, repository, worker, and storage functions create child spans. Business attributes (pickup type, household ID, filter params, etc.) are set on the root span via `trace.SpanFromContext`. Traces are exported via OTLP HTTP to the OpenTelemetry Collector and forwarded to Jaeger.
 
 Span naming convention: `layer.domain.Method` (e.g., `service.pickup.Create`, `repository.household.FindByID`, `storage.s3.Upload`).
+
+### Structured Logs
+
+Every layer emits structured JSON logs via `log/slog`. Each log line carries `trace_id` and `span_id` from the active OTel span so logs and traces can be correlated in Grafana.
+
+```json
+{
+  "time": "2025-07-01T10:23:45.123Z",
+  "level": "INFO",
+  "msg": "scheduled",
+  "op": "PickupService.Schedule",
+  "pickup_id": "a1b2c3d4-...",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "request_id": "7e3d1f9a-..."
+}
+```
+
+Log levels by scenario:
+
+| Level | When |
+|-------|------|
+| `DEBUG` | Entry into a method with input IDs (development detail) |
+| `INFO` | State transitions (created, scheduled, completed, cancelled) and expected domain errors (ErrConflict/ErrNotFound/ErrValidation) that map to 4xx |
+| `ERROR` | Unexpected failures that return 500 — DB errors, S3 failures, transaction rollbacks |
+
+### Unified Log/Trace Search
+
+The stack ships Loki + Promtail alongside Prometheus and Jaeger. Promtail tails the app container's Docker logs and pushes JSON-parsed entries to Loki.
+
+**Pivot from Grafana:**
+1. Open **Grafana → Dashboards → Logs and Traces**
+2. Paste a `trace_id` (from a Jaeger search or an `X-Request-ID` response header) into the **trace_id** template variable — the log panel updates live
+3. Use the **span_id** variable to narrow to a single span's logs
+
+**Pivot from Jaeger:**
+- Each trace span has a **"View logs"** button (configured via `tracesToLogsV2`) that opens a Loki Explore query for that trace_id
+
+**Pivot from Loki:**
+- Each log line's `trace_id` field is a clickable derived field link that opens the Jaeger trace directly
 
 ### SLOs and Alerts
 

@@ -17,3 +17,9 @@ datasources:
           - key: pickup.type
           - key: db.sql.table
           - key: db.operation
+      tracesToLogsV2:
+        datasourceUid: loki
+        filterByTraceID: true
+        filterBySpanID: false
+        customQuery: true
+        query: '{service="waste-api"} | json | trace_id="${__trace.traceId}"'

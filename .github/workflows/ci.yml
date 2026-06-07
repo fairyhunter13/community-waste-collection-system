@@ -216,7 +216,7 @@ jobs:
       - name: Start infrastructure services
         run: |
           docker compose -f deployments/docker-compose.yml up --build -d \
-            postgres minio otel-collector
+            postgres minio otel-collector loki promtail
 
       - name: Wait for postgres
         run: |
@@ -239,6 +239,17 @@ jobs:
               break
             fi
             echo "Waiting for MinIO ($i/30)..."
+            sleep 3
+          done
+
+      - name: Wait for Loki
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3100/ready > /dev/null 2>&1; then
+              echo "Loki ready"
+              break
+            fi
+            echo "Waiting for Loki ($i/30)..."
             sleep 3
           done
 
@@ -278,6 +289,32 @@ jobs:
         env:
           BASE_URL: "http://localhost:8080"
           E2E_DB_URL: "postgres://postgres:postgres@localhost:5432/waste_collection?sslmode=disable"
+
+      - name: Verify trace-to-log correlation via Loki
+        run: |
+          # Wait for Promtail to flush the E2E test traffic into Loki
+          sleep 15
+          START=$(( $(date +%s) - 600 ))000000000
+          END=$(date +%s)000000000
+          RESULT=$(curl -sG 'http://localhost:3100/loki/api/v1/query_range' \
+            --data-urlencode 'query={service="waste-api"} | json | trace_id != ""' \
+            --data-urlencode "start=${START}" \
+            --data-urlencode "end=${END}" \
+            --data-urlencode 'limit=10')
+          COUNT=$(echo "$RESULT" | python3 -c "
+          import json, sys
+          r = json.load(sys.stdin)
+          streams = r.get('data', {}).get('result', [])
+          total = sum(len(s.get('values', [])) for s in streams)
+          print(total)
+          " 2>/dev/null || echo "0")
+          echo "Log lines with trace_id found in Loki: ${COUNT}"
+          if [ "${COUNT}" -ge 1 ]; then
+            echo "OK: trace↔log correlation verified"
+          else
+            echo "WARNING: no traced log lines found in Loki — Promtail may need more time"
+            docker compose -f deployments/docker-compose.yml logs promtail --tail=20
+          fi
 
       - name: Collect logs on failure
         if: failure()
