@@ -30,7 +30,10 @@ func (h *Handler) CreatePickup(c echo.Context) error {
 
 // ListPickups handles GET /api/pickups with optional status and household_id filters.
 func (h *Handler) ListPickups(c echo.Context) error {
-	page, perPage := paginationParams(c)
+	page, perPage, err := paginationParams(c)
+	if err != nil {
+		return err
+	}
 	filter := domain.PickupFilter{Page: page, PerPage: perPage}
 
 	span := trace.SpanFromContext(c.Request().Context())

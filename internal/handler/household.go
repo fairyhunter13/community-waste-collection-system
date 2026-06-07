@@ -29,7 +29,10 @@ func (h *Handler) CreateHousehold(c echo.Context) error {
 
 // ListHouseholds handles GET /api/households.
 func (h *Handler) ListHouseholds(c echo.Context) error {
-	page, perPage := paginationParams(c)
+	page, perPage, err := paginationParams(c)
+	if err != nil {
+		return err
+	}
 	trace.SpanFromContext(c.Request().Context()).SetAttributes(
 		attribute.Int("pagination.page", page),
 		attribute.Int("pagination.per_page", perPage),

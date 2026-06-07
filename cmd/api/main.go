@@ -98,7 +98,7 @@ func buildHTTPServer(cfg *config.Config, logger *slog.Logger, db *sqlx.DB, s3 *s
 
 	householdSvc := service.NewHouseholdService(householdRepo)
 	pickupSvc := service.NewPickupService(pickupRepo, paymentRepo, db)
-	paymentSvc := service.NewPaymentService(paymentRepo, s3)
+	paymentSvc := service.NewPaymentService(paymentRepo, pickupRepo, s3)
 	reportSvc := service.NewReportService(paymentRepo)
 
 	e := echo.New()

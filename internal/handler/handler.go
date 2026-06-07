@@ -4,6 +4,8 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/fairyhunter13/community-waste-collection-system/internal/config"
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
 	"github.com/fairyhunter13/community-waste-collection-system/internal/middleware"
+	"github.com/fairyhunter13/community-waste-collection-system/internal/observability"
 )
 
 func newValidator(db *sqlx.DB) *validator.Validate {
@@ -127,19 +130,32 @@ func (h *Handler) RegisterRoutes(e *echo.Echo) {
 }
 
 // paginationParams extracts page and per_page query params with defaults.
-func paginationParams(c echo.Context) (page, perPage int) {
-	page, _ = strconv.Atoi(c.QueryParam("page"))
-	perPage, _ = strconv.Atoi(c.QueryParam("per_page"))
-	if page <= 0 {
+// Returns a non-nil error (already written to the response) when a provided
+// value is syntactically invalid or out of the accepted range.
+func paginationParams(c echo.Context) (page, perPage int, err error) {
+	if raw := c.QueryParam("page"); raw != "" {
+		v, convErr := strconv.Atoi(raw)
+		if convErr != nil || v <= 0 {
+			_ = respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "page must be a positive integer")
+			return 0, 0, fmt.Errorf("invalid page")
+		}
+		page = v
+	}
+	if raw := c.QueryParam("per_page"); raw != "" {
+		v, convErr := strconv.Atoi(raw)
+		if convErr != nil || v <= 0 || v > 100 {
+			_ = respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "per_page must be between 1 and 100")
+			return 0, 0, fmt.Errorf("invalid per_page")
+		}
+		perPage = v
+	}
+	if page == 0 {
 		page = 1
 	}
-	if perPage <= 0 {
+	if perPage == 0 {
 		perPage = 20
 	}
-	if perPage > 100 {
-		perPage = 100
-	}
-	return page, perPage
+	return page, perPage, nil
 }
 
 type successResp struct {
@@ -229,6 +245,11 @@ func mapError(c echo.Context, err error) error {
 	case errors.Is(err, domain.ErrValidation):
 		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 	default:
+		observability.FromContext(c.Request().Context()).ErrorContext(c.Request().Context(),
+			"unmapped error → 500",
+			slog.String("op", "handler.mapError"),
+			slog.Any("err", err),
+		)
 		return respondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
 }
