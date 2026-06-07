@@ -36,18 +36,23 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker.
 
 ```bash
 cp .env.example .env
-make docker-up       # start all services (postgres, minio, otel-collector, api)
+make docker-up       # start all services (postgres, minio, otel-collector, jaeger, prometheus, grafana, api)
 make migrate-up      # apply database migrations
 ```
 
 Services started:
 
-| Service | URL |
-|---|---|
-| API | http://localhost:8080 |
-| MinIO console | http://localhost:9001 (minioadmin / minioadmin) |
-| Prometheus metrics | http://localhost:2112/metrics |
-| pprof debug | http://localhost:6060/debug/pprof/ |
+| Service | URL | Credentials |
+|---|---|---|
+| API | http://localhost:8080 | — |
+| Grafana Dashboard | http://localhost:3000 | admin / admin |
+| Prometheus | http://localhost:9090 | — |
+| Jaeger UI (traces) | http://localhost:16686 | — |
+| MinIO console | http://localhost:9001 | minioadmin / minioadmin |
+| Prometheus metrics | http://localhost:2112/metrics | — |
+| pprof debug | http://localhost:6060/debug/pprof/ | — |
+
+The Grafana dashboard auto-provisions on startup and shows 6 rows of panels: API traffic, business events, database performance, background worker, Go runtime, and process metrics.
 
 ---
 

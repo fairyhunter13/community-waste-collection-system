@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/config"
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
@@ -51,15 +53,29 @@ func (w *OrganicCanceler) Start(ctx context.Context) {
 }
 
 func (w *OrganicCanceler) run(ctx context.Context) {
+	ctx, span := observability.Tracer().Start(ctx, "worker.organicCanceler.run")
+	defer span.End()
+	start := time.Now()
+
+	observability.WorkerCyclesTotal.Inc()
+
 	cutoffTime := time.Now().UTC().Add(-w.cutoff)
 
 	pickups, err := w.repo.FindExpiredOrganic(ctx, cutoffTime)
 	if err != nil {
 		w.logger.Error("find stale organic pickups", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "find expired organic failed")
+		observability.WorkerCycleDurationSeconds.Observe(time.Since(start).Seconds())
 		return
 	}
 
+	span.SetAttributes(attribute.Int("worker.expired_count", len(pickups)))
+	observability.WorkerExpiredFoundTotal.Add(float64(len(pickups)))
+
 	if len(pickups) == 0 {
+		span.SetStatus(codes.Ok, "")
+		observability.WorkerCycleDurationSeconds.Observe(time.Since(start).Seconds())
 		return
 	}
 
@@ -70,9 +86,16 @@ func (w *OrganicCanceler) run(ctx context.Context) {
 
 	if err := w.repo.BulkCancel(ctx, ids); err != nil {
 		w.logger.Error("bulk cancel organic pickups", "error", err, "count", len(ids))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "bulk cancel failed")
+		observability.WorkerCycleDurationSeconds.Observe(time.Since(start).Seconds())
 		return
 	}
 
+	span.SetAttributes(attribute.Int("worker.canceled_count", len(ids)))
+	span.SetStatus(codes.Ok, "")
 	observability.OrganicCancelsTotal.Add(float64(len(ids)))
+	observability.PickupsCanceledTotal.WithLabelValues("organic", "auto").Add(float64(len(ids)))
+	observability.WorkerCycleDurationSeconds.Observe(time.Since(start).Seconds())
 	w.logger.Info("auto-cancelled stale organic pickups", "count", len(ids))
 }
