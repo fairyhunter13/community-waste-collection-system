@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	"github.com/shopspring/decimal"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/config"
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
@@ -164,9 +165,16 @@ type errorBody struct {
 	Message string `json:"message"`
 }
 
+type errorMeta struct {
+	RequestID string `json:"request_id,omitempty"`
+	TraceID   string `json:"trace_id,omitempty"`
+	SpanID    string `json:"span_id,omitempty"`
+}
+
 type errorResp struct {
-	Success bool      `json:"success"`
-	Error   errorBody `json:"error"`
+	Success bool       `json:"success"`
+	Error   errorBody  `json:"error"`
+	Meta    *errorMeta `json:"meta,omitempty"`
 }
 
 func respond(c echo.Context, status int, data any) error {
@@ -186,10 +194,28 @@ func respondList(c echo.Context, data any, total, page, perPage int) error {
 }
 
 func respondError(c echo.Context, status int, code, message string) error {
+	meta := extractErrorMeta(c)
 	return c.JSON(status, errorResp{
 		Success: false,
 		Error:   errorBody{Code: code, Message: message},
+		Meta:    meta,
 	})
+}
+
+func extractErrorMeta(c echo.Context) *errorMeta {
+	span := trace.SpanFromContext(c.Request().Context())
+	sc := span.SpanContext()
+	if !sc.IsValid() {
+		return nil
+	}
+	m := &errorMeta{
+		TraceID: sc.TraceID().String(),
+		SpanID:  sc.SpanID().String(),
+	}
+	if rid := c.Response().Header().Get("X-Request-Id"); rid != "" {
+		m.RequestID = rid
+	}
+	return m
 }
 
 func mapError(c echo.Context, err error) error {

@@ -25,7 +25,7 @@ func NewLogger(cfg *config.Config) *slog.Logger {
 		level = slog.LevelInfo
 	}
 
-	opts := &slog.HandlerOptions{Level: level}
+	opts := &slog.HandlerOptions{Level: level, AddSource: true}
 
 	var handler slog.Handler
 	if cfg.LogFormat == "text" {
