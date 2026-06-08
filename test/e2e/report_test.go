@@ -73,8 +73,9 @@ func (s *E2ESuite) TestWasteSummary_WithData() {
 	s.decode(resp, &result)
 	s.True(result["success"].(bool))
 
+	dataObj := result["data"].(map[string]any)
 	byType := make(map[string]any)
-	for _, entry := range result["data"].([]any) {
+	for _, entry := range dataObj["by_type"].([]any) {
 		e := entry.(map[string]any)
 		byType[e["type"].(string)] = e
 	}
