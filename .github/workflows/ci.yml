@@ -217,6 +217,15 @@ jobs:
           print('OK: collections are valid and in sync')
           "
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Route parity check
+        run: go run ./cmd/route-extract --openapi api/openapi.yaml
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -364,6 +373,13 @@ jobs:
             echo "WARNING: no traced log lines found in Loki — Promtail may need more time"
             docker compose -f deployments/docker-compose.yml logs promtail --tail=20
           fi
+
+      - name: Smoke test (Newman)
+        run: |
+          npx --yes newman@6 run api/community-waste.postman_collection.json \
+            --env-var "baseUrl=http://localhost:8080" \
+            --bail \
+            --reporters cli
 
       - name: Collect logs on failure
         if: failure()

@@ -18,15 +18,15 @@ All 15 product endpoints:
 | DELETE | /api/households/:id | DeleteHousehold |
 | POST | /api/pickups | CreatePickup |
 | GET | /api/pickups | ListPickups |
-| GET | /api/pickups/:id | GetPickup |
 | PUT | /api/pickups/:id/schedule | SchedulePickup |
 | PUT | /api/pickups/:id/complete | CompletePickup |
 | PUT | /api/pickups/:id/cancel | CancelPickup |
 | POST | /api/payments | CreatePayment |
 | GET | /api/payments | ListPayments |
 | PUT | /api/payments/:id/confirm | ConfirmPayment |
-| GET | /api/reports/household/:id | HouseholdReport |
-| GET | /api/reports/summary | WasteSummary |
+| GET | /api/reports/waste-summary | WasteSummary |
+| GET | /api/reports/payment-summary | PaymentSummary |
+| GET | /api/reports/households/:id/history | HouseholdHistory |
 
 Operational endpoints: `GET /health`, `GET /readyz`, `GET /metrics`.
 
