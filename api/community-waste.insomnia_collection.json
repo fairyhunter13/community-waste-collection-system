@@ -21,7 +21,8 @@
         "base_url": "http://localhost:8080",
         "household_id": "00000000-0000-0000-0000-000000000000",
         "pickup_id": "00000000-0000-0000-0000-000000000000",
-        "payment_id": "00000000-0000-0000-0000-000000000000"
+        "payment_id": "00000000-0000-0000-0000-000000000000",
+        "fixtures_dir": "api/fixtures"
       },
       "dataPropertyOrder": {
         "&": [
@@ -63,14 +64,14 @@
         "text": "{\"owner_name\": \"Budi Santoso\", \"address\": \"Jl. Merdeka No. 1\"}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `POST /api/households`\n\n### Responses\n\n#### 201 Created\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"owner_name\": \"Budi Santoso\",\n    \"address\": \"Jl. Merdeka No. 5, Jakarta\",\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"owner_name is required\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 413 Request Entity Too Large\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"REQUEST_TOO_LARGE\",\n    \"message\": \"request body exceeds size limit\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -2
     },
     {
       "_id": "req_10f9cc4129874c1b85bc5d19d01becec",
       "_type": "request",
       "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
-      "name": "Create Household \u2014 400 Missing Fields",
+      "name": "Create Household — 400 Missing Fields",
       "method": "POST",
       "url": "{{base_url}}/api/households",
       "headers": [
@@ -86,7 +87,7 @@
         "text": "{}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `POST /api/households`\n\n### Responses\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"owner_name is required\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -3
     },
     {
@@ -111,7 +112,7 @@
       ],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/households`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"owner_name\": \"Budi Santoso\",\n      \"address\": \"Jl. Merdeka No. 5, Jakarta\",\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -4
     },
     {
@@ -125,21 +126,21 @@
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/households/{{household_id}}`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"owner_name\": \"Budi Santoso\",\n    \"address\": \"Jl. Merdeka No. 5, Jakarta\",\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}\n```\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -5
     },
     {
       "_id": "req_67cda936703149188de85d112e9ad1b0",
       "_type": "request",
       "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
-      "name": "Get Household \u2014 404",
+      "name": "Get Household — 404",
       "method": "GET",
       "url": "{{base_url}}/api/households/00000000-0000-0000-0000-000000000000",
       "headers": [],
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/households/00000000-0000-0000-0000-000000000000`\n\n### Responses\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -6
     },
     {
@@ -170,7 +171,7 @@
         "text": "{\"household_id\": \"{{household_id}}\", \"type\": \"organic\"}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `POST /api/pickups`\n\n### Responses\n\n#### 201 Created\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"type\": \"organic\",\n    \"status\": \"pending\",\n    \"pickup_date\": null,\n    \"safety_check\": false,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"type must be one of: organic, plastic, paper, electronic\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 409 Conflict\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"CONFLICT\",\n    \"message\": \"household has a pending payment\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 413 Request Entity Too Large\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"REQUEST_TOO_LARGE\",\n    \"message\": \"request body exceeds size limit\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 422 Unprocessable Entity\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"BUSINESS_RULE_VIOLATION\",\n    \"message\": \"electronic pickup requires safety_check to be true before scheduling\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 429 Too Many Requests\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"RATE_LIMITED\",\n    \"message\": \"too many requests\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -9
     },
     {
@@ -193,14 +194,14 @@
         "text": "{\"household_id\": \"{{household_id}}\", \"type\": \"electronic\", \"safety_check\": true}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `POST /api/pickups`\n\n### Responses\n\n#### 201 Created\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"type\": \"electronic\",\n    \"status\": \"pending\",\n    \"pickup_date\": null,\n    \"safety_check\": true,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"type must be one of: organic, plastic, paper, electronic\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 409 Conflict\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"CONFLICT\",\n    \"message\": \"household has a pending payment\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 413 Request Entity Too Large\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"REQUEST_TOO_LARGE\",\n    \"message\": \"request body exceeds size limit\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 422 Unprocessable Entity\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"BUSINESS_RULE_VIOLATION\",\n    \"message\": \"electronic pickup requires safety_check to be true before scheduling\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 429 Too Many Requests\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"RATE_LIMITED\",\n    \"message\": \"too many requests\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -10
     },
     {
       "_id": "req_6331aadb1034469d8328b189946b4a2b",
       "_type": "request",
       "parentId": "fld_d35a536caf594a16963e9a95390e9594",
-      "name": "Create Pickup \u2014 409 Pending Payment",
+      "name": "Create Pickup — 409 Pending Payment",
       "method": "POST",
       "url": "{{base_url}}/api/pickups",
       "headers": [
@@ -216,14 +217,14 @@
         "text": "{\"household_id\": \"{{household_id}}\", \"type\": \"plastic\"}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `POST /api/pickups`\n\n### Responses\n\n#### 409 Conflict\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"CONFLICT\",\n    \"message\": \"household has a pending payment\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -11
     },
     {
       "_id": "req_f2b525aa079b4038989b678d569e6791",
       "_type": "request",
       "parentId": "fld_d35a536caf594a16963e9a95390e9594",
-      "name": "Create Pickup \u2014 429 Rate Limited",
+      "name": "Create Pickup — 429 Rate Limited",
       "method": "POST",
       "url": "{{base_url}}/api/pickups",
       "headers": [
@@ -239,7 +240,7 @@
         "text": "{\"household_id\": \"{{household_id}}\", \"type\": \"organic\"}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `POST /api/pickups`\n\n### Responses\n\n#### 429 Too Many Requests\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"RATE_LIMITED\",\n    \"message\": \"too many requests\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -12
     },
     {
@@ -264,14 +265,14 @@
       ],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/pickups`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n      \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"type\": \"plastic\",\n      \"status\": \"pending\",\n      \"pickup_date\": null,\n      \"safety_check\": false,\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"invalid query parameter\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -13
     },
     {
       "_id": "req_d8eabdb22d364088a78d904645ea0408",
       "_type": "request",
       "parentId": "fld_d35a536caf594a16963e9a95390e9594",
-      "name": "List Pickups \u2014 filter by status",
+      "name": "List Pickups — filter by status",
       "method": "GET",
       "url": "{{base_url}}/api/pickups",
       "headers": [],
@@ -284,7 +285,7 @@
       ],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/pickups`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n      \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"type\": \"plastic\",\n      \"status\": \"pending\",\n      \"pickup_date\": null,\n      \"safety_check\": false,\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"invalid query parameter\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -14
     },
     {
@@ -307,14 +308,14 @@
         "text": "{\"pickup_date\": \"2026-12-01T10:00:00Z\"}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `PUT /api/pickups/{{pickup_id}}/schedule`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"type\": \"plastic\",\n    \"status\": \"scheduled\",\n    \"pickup_date\": \"2026-01-22T11:15:00Z\",\n    \"safety_check\": false,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T10:15:00Z\"\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"pickup_date must be a future date\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"pickup not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 409 Conflict\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"CONFLICT\",\n    \"message\": \"pickup is not in pending status\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 422 Unprocessable Entity\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"BUSINESS_RULE_VIOLATION\",\n    \"message\": \"electronic pickup requires safety_check to be true before scheduling\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -15
     },
     {
       "_id": "req_0a85726fdaf14d75891c422c286d9020",
       "_type": "request",
       "parentId": "fld_d35a536caf594a16963e9a95390e9594",
-      "name": "Schedule Pickup \u2014 422 Electronic No Safety Check",
+      "name": "Schedule Pickup — 422 Electronic No Safety Check",
       "method": "PUT",
       "url": "{{base_url}}/api/pickups/{{pickup_id}}/schedule",
       "headers": [
@@ -330,7 +331,7 @@
         "text": "{\"pickup_date\": \"2026-12-01T10:00:00Z\"}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `PUT /api/pickups/{{pickup_id}}/schedule`\n\n### Responses\n\n#### 422 Unprocessable Entity\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"BUSINESS_RULE_VIOLATION\",\n    \"message\": \"electronic pickup requires safety_check to be true before scheduling\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -16
     },
     {
@@ -344,7 +345,7 @@
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `PUT /api/pickups/{{pickup_id}}/complete`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"type\": \"plastic\",\n    \"status\": \"completed\",\n    \"pickup_date\": \"2026-01-22T11:15:00Z\",\n    \"safety_check\": false,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2026-01-22T11:15:00Z\"\n  }\n}\n```\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"pickup not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 409 Conflict\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"CONFLICT\",\n    \"message\": \"pickup is not in scheduled status\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -17
     },
     {
@@ -358,21 +359,21 @@
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `PUT /api/pickups/{{pickup_id}}/cancel`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"type\": \"organic\",\n    \"status\": \"canceled\",\n    \"pickup_date\": null,\n    \"safety_check\": false,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T11:00:00Z\"\n  }\n}\n```\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"pickup not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 409 Conflict\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"CONFLICT\",\n    \"message\": \"pickup cannot be canceled in its current state\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -18
     },
     {
       "_id": "req_f88a5ef7542641ebb60dcd3078f01de1",
       "_type": "request",
       "parentId": "fld_d35a536caf594a16963e9a95390e9594",
-      "name": "Cancel Pickup \u2014 409 Already Completed",
+      "name": "Cancel Pickup — 409 Already Completed",
       "method": "PUT",
       "url": "{{base_url}}/api/pickups/{{pickup_id}}/cancel",
       "headers": [],
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `PUT /api/pickups/{{pickup_id}}/cancel`\n\n### Responses\n\n#### 409 Conflict\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"CONFLICT\",\n    \"message\": \"pickup cannot be canceled in its current state\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -19
     },
     {
@@ -403,7 +404,7 @@
         "text": "{\"household_id\": \"{{household_id}}\", \"waste_id\": \"{{pickup_id}}\", \"amount\": \"50000.00\"}"
       },
       "authentication": {},
-      "description": "",
+      "description": "### `POST /api/payments`\n\n### Responses\n\n#### 201 Created\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"880e8400-e29b-41d4-a716-446655440002\",\n    \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"waste_id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"amount\": \"50000.00\",\n    \"status\": \"pending\",\n    \"proof_file_url\": null,\n    \"payment_date\": null,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"amount must be a positive decimal\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 409 Conflict\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"CONFLICT\",\n    \"message\": \"payment already exists for this pickup\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -21
     },
     {
@@ -428,14 +429,14 @@
       ],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/payments`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"880e8400-e29b-41d4-a716-446655440002\",\n      \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"waste_id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n      \"amount\": \"50000.00\",\n      \"status\": \"pending\",\n      \"proof_file_url\": null,\n      \"payment_date\": null,\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"invalid query parameter\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -22
     },
     {
       "_id": "req_cdb02526b05840dca7be36f2e7d2c39e",
       "_type": "request",
       "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
-      "name": "List Payments \u2014 filter by status",
+      "name": "List Payments — filter by status",
       "method": "GET",
       "url": "{{base_url}}/api/payments",
       "headers": [],
@@ -448,7 +449,7 @@
       ],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/payments`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"880e8400-e29b-41d4-a716-446655440002\",\n      \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"waste_id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n      \"amount\": \"50000.00\",\n      \"status\": \"paid\",\n      \"proof_file_url\": \"http://localhost:9000/waste-proofs/proof.jpg\",\n      \"payment_date\": \"2025-11-15T10:15:00Z\",\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T10:15:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"invalid query parameter\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -23
     },
     {
@@ -468,19 +469,19 @@
             "value": "",
             "type": "file",
             "disabled": false,
-            "fileName": "api/fixtures/receipt.jpg"
+            "fileName": "{{ _.fixtures_dir }}/receipt.jpg"
           }
         ]
       },
       "authentication": {},
-      "description": "",
+      "description": "### `PUT /api/payments/{{payment_id}}/confirm`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"880e8400-e29b-41d4-a716-446655440002\",\n    \"household_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"waste_id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"amount\": \"50000.00\",\n    \"status\": \"paid\",\n    \"proof_file_url\": \"http://localhost:9000/waste-proofs/proof.jpg\",\n    \"payment_date\": \"2025-11-15T10:15:00Z\",\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T10:15:00Z\"\n  }\n}\n```\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"proof file is required\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"payment not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -24
     },
     {
       "_id": "req_f9965ce1c2bb4133bf5b523ce26fe015",
       "_type": "request",
       "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
-      "name": "Confirm Payment \u2014 400 No File",
+      "name": "Confirm Payment — 400 No File",
       "method": "PUT",
       "url": "{{base_url}}/api/payments/{{payment_id}}/confirm",
       "headers": [],
@@ -490,14 +491,14 @@
         "params": []
       },
       "authentication": {},
-      "description": "",
+      "description": "### `PUT /api/payments/{{payment_id}}/confirm`\n\n### Responses\n\n#### 400 Bad Request\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"proof file is required\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -25
     },
     {
       "_id": "req_6b27ab2ea62045bf91d378ac23990089",
       "_type": "request",
       "parentId": "fld_0e90b316b57b45538ddf65649b17d440",
-      "name": "Confirm Payment \u2014 404",
+      "name": "Confirm Payment — 404",
       "method": "PUT",
       "url": "{{base_url}}/api/payments/00000000-0000-0000-0000-000000000000/confirm",
       "headers": [],
@@ -510,12 +511,12 @@
             "value": "",
             "type": "file",
             "disabled": false,
-            "fileName": "api/fixtures/receipt.jpg"
+            "fileName": "{{ _.fixtures_dir }}/receipt.jpg"
           }
         ]
       },
       "authentication": {},
-      "description": "",
+      "description": "### `PUT /api/payments/00000000-0000-0000-0000-000000000000/confirm`\n\n### Responses\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"payment not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -26
     },
     {
@@ -537,7 +538,7 @@
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/reports/waste-summary`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"by_type\": [\n      {\n        \"type\": \"plastic\",\n        \"total\": 7,\n        \"by_status\": {\n          \"pending\": 2,\n          \"completed\": 5\n        }\n      },\n      {\n        \"type\": \"organic\",\n        \"total\": 3,\n        \"by_status\": {\n          \"pending\": 2,\n          \"canceled\": 1\n        }\n      }\n    ]\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -28
     },
     {
@@ -551,7 +552,7 @@
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/reports/payment-summary`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"by_status\": [\n      {\n        \"status\": \"pending\",\n        \"count\": 3,\n        \"total_amount\": \"150000.00\"\n      },\n      {\n        \"status\": \"paid\",\n        \"count\": 12,\n        \"total_amount\": \"600000.00\"\n      },\n      {\n        \"status\": \"failed\",\n        \"count\": 1,\n        \"total_amount\": \"50000.00\"\n      }\n    ],\n    \"total_revenue\": \"600000.00\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -29
     },
     {
@@ -565,21 +566,21 @@
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/reports/households/{{household_id}}/history`\n\n### Responses\n\n#### 200 OK\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"household\": {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"owner_name\": \"Budi Santoso\",\n      \"address\": \"Jl. Merdeka No. 5, Jakarta\",\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    },\n    \"pickups\": [\n      {\n        \"id\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n        \"type\": \"plastic\",\n        \"status\": \"completed\",\n        \"pickup_date\": \"2026-01-22T11:15:00Z\"\n      }\n    ],\n    \"payments\": [\n      {\n        \"id\": \"880e8400-e29b-41d4-a716-446655440002\",\n        \"amount\": \"50000.00\",\n        \"status\": \"paid\"\n      }\n    ]\n  }\n}\n```\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -30
     },
     {
       "_id": "req_f0823425191741579b16230bcbac1366",
       "_type": "request",
       "parentId": "fld_e514963a4fcd4358874798b6935b540a",
-      "name": "Household History \u2014 404",
+      "name": "Household History — 404",
       "method": "GET",
       "url": "{{base_url}}/api/reports/households/00000000-0000-0000-0000-000000000000/history",
       "headers": [],
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `GET /api/reports/households/00000000-0000-0000-0000-000000000000/history`\n\n### Responses\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -31
     },
     {
@@ -593,7 +594,7 @@
       "parameters": [],
       "body": {},
       "authentication": {},
-      "description": "",
+      "description": "### `DELETE /api/households/{{household_id}}`\n\n### Responses\n\n#### 204 No Content\n*(no response body)*\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -7
     }
   ]

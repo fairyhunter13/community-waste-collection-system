@@ -376,12 +376,14 @@ Deleting a household cascades to all its pickups, which cascade to all their pay
 
 ### Postman / Insomnia Collections
 
-Two equivalent collection exports live under `api/` — 27 requests across 4 folders (Households, Waste Pickups, Payments, Reports), each with saved response examples:
+Two equivalent collection exports live under `api/` — 27 requests across 4 folders (Households, Waste Pickups, Payments, Reports):
 
 | Tool | File |
 |------|------|
 | Postman | `api/community-waste.postman_collection.json` |
 | Insomnia v4 | `api/community-waste.insomnia_collection.json` |
+
+**Postman** ships a saved response example for every documented status code on each primary request (success + every error variant). **Insomnia v4** cannot store saved responses natively; the same example bodies are embedded as rendered markdown in each request's description panel.
 
 Set the `base_url` collection variable to `http://localhost:8080`. Replay against a running stack with [Newman](https://github.com/postmanlabs/newman):
 
