@@ -552,7 +552,7 @@ func (s *E2ESuite) TestPickup_InvalidWasteType_400() {
 	var body map[string]any
 	s.decode(resp, &body)
 	s.False(body["success"].(bool), "success must be false for a validation error")
-	s.NotEmpty(body["code"], "error code must be present")
+	s.NotEmpty(body["error"].(map[string]any)["code"], "error code must be present")
 }
 
 // TestPickup_InvalidStatusFilter_400 verifies that an unrecognised status

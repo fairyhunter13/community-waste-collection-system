@@ -64,19 +64,14 @@ jobs:
       - name: Build Docker image
         run: docker build -t cwc-scan:ci -f build/Dockerfile .
 
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin
-
       - name: Run Trivy image scan
-        run: |
-          trivy image \
-            --severity HIGH,CRITICAL \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --format table \
-            cwc-scan:ci
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: cwc-scan:ci
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
 
   test-unit:
     name: Unit Tests
