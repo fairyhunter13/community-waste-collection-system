@@ -1,13 +1,19 @@
 package service_test
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
@@ -313,4 +319,99 @@ func (s *PickupServiceSuite) TestCreate_HouseholdNotFound_PropagatesError() {
 		Type:        domain.WasteTypeOrganic,
 	})
 	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
+
+// ── Complete transaction error branches (sqlmock-backed DB) ───────────────────
+//
+// These tests cover the four error paths inside Complete that are only
+// reachable with a real *sqlx.DB that can be instructed to fail at specific
+// points in the transaction lifecycle.
+
+func newScheduledPickup(id uuid.UUID) *domain.WastePickup {
+	return &domain.WastePickup{
+		ID:     id,
+		Status: domain.PickupStatusScheduled,
+		Type:   domain.WasteTypeOrganic,
+	}
+}
+
+func TestComplete_BeginTxFails(t *testing.T) {
+	db, sm, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	sm.ExpectBegin().WillReturnError(errors.New("db unavailable"))
+
+	id := uuid.New()
+	pickupRepo := mocks.NewPickupRepository(t)
+	paymentRepo := mocks.NewPaymentRepository(t)
+	pickupRepo.On("FindByID", mock.Anything, id).Return(newScheduledPickup(id), nil)
+
+	svc := service.NewPickupService(pickupRepo, paymentRepo, sqlx.NewDb(db, "postgres"))
+	_, err = svc.Complete(context.Background(), id)
+	assert.ErrorIs(t, err, domain.ErrInternalFailure)
+	assert.NoError(t, sm.ExpectationsWereMet())
+}
+
+func TestComplete_UpdateStatusInTxFails(t *testing.T) {
+	db, sm, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	sm.ExpectBegin()
+	sm.ExpectRollback()
+
+	id := uuid.New()
+	pickupRepo := mocks.NewPickupRepository(t)
+	paymentRepo := mocks.NewPaymentRepository(t)
+	pickupRepo.On("FindByID", mock.Anything, id).Return(newScheduledPickup(id), nil)
+	pickupRepo.On("UpdateStatus", mock.Anything, id, domain.PickupStatusCompleted, mock.Anything).
+		Return(domain.ErrInternalFailure)
+
+	svc := service.NewPickupService(pickupRepo, paymentRepo, sqlx.NewDb(db, "postgres"))
+	_, err = svc.Complete(context.Background(), id)
+	assert.ErrorIs(t, err, domain.ErrInternalFailure)
+	assert.NoError(t, sm.ExpectationsWereMet())
+}
+
+func TestComplete_CreateWithTxFails(t *testing.T) {
+	db, sm, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	sm.ExpectBegin()
+	sm.ExpectRollback()
+
+	id := uuid.New()
+	pickupRepo := mocks.NewPickupRepository(t)
+	paymentRepo := mocks.NewPaymentRepository(t)
+	pickupRepo.On("FindByID", mock.Anything, id).Return(newScheduledPickup(id), nil)
+	pickupRepo.On("UpdateStatus", mock.Anything, id, domain.PickupStatusCompleted, mock.Anything).Return(nil)
+	paymentRepo.On("CreateWithTx", mock.Anything, mock.Anything, mock.AnythingOfType("*domain.Payment")).
+		Return(domain.ErrInternalFailure)
+
+	svc := service.NewPickupService(pickupRepo, paymentRepo, sqlx.NewDb(db, "postgres"))
+	_, err = svc.Complete(context.Background(), id)
+	assert.ErrorIs(t, err, domain.ErrInternalFailure)
+	assert.NoError(t, sm.ExpectationsWereMet())
+}
+
+func TestComplete_CommitFails(t *testing.T) {
+	db, sm, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+	sm.ExpectBegin()
+	sm.ExpectCommit().WillReturnError(errors.New("commit failed"))
+	// After a failed Commit, database/sql marks tx.done=1 so the deferred
+	// Rollback returns sql.ErrTxDone without reaching the mock driver —
+	// no ExpectRollback needed here.
+
+	id := uuid.New()
+	pickupRepo := mocks.NewPickupRepository(t)
+	paymentRepo := mocks.NewPaymentRepository(t)
+	pickupRepo.On("FindByID", mock.Anything, id).Return(newScheduledPickup(id), nil)
+	pickupRepo.On("UpdateStatus", mock.Anything, id, domain.PickupStatusCompleted, mock.Anything).Return(nil)
+	paymentRepo.On("CreateWithTx", mock.Anything, mock.Anything, mock.AnythingOfType("*domain.Payment")).Return(nil)
+
+	svc := service.NewPickupService(pickupRepo, paymentRepo, sqlx.NewDb(db, "postgres"))
+	_, err = svc.Complete(context.Background(), id)
+	assert.ErrorIs(t, err, domain.ErrInternalFailure)
+	assert.NoError(t, sm.ExpectationsWereMet())
 }
