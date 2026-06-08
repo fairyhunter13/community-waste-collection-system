@@ -199,11 +199,6 @@ jobs:
             sleep 3
           done
 
-      - name: Create MinIO bucket
-        run: |
-          docker compose -f deployments/docker-compose.yml exec -T minio \
-            mc mb local/waste-proofs --ignore-existing
-
       - name: Run database migrations
         run: |
           NETWORK=$(docker inspect \

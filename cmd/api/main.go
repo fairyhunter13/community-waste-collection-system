@@ -51,6 +51,10 @@ func main() {
 		logger.Error("init S3 client", "error", err)
 		os.Exit(1)
 	}
+	if err := s3.EnsureBucket(ctx); err != nil {
+		logger.Error("ensure S3 bucket", "error", err)
+		os.Exit(1)
+	}
 
 	// Repositories
 	householdRepo := repository.NewHouseholdRepository(db)
