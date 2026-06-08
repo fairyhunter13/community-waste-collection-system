@@ -323,7 +323,8 @@ func (s *E2ESuite) TestPickup_CreateNonExistentHousehold() {
 }
 
 func (s *E2ESuite) TestPickup_RateLimit() {
-	// Burst 11 rapid pickup-create requests to trigger rate limiting (burst=10)
+	// Send 60 rapid pickup-create requests; CI uses RATE_LIMIT_BURST=50, so at least
+	// some requests must exceed the burst window and receive 429.
 	var hResp map[string]any
 	resp := s.do(http.MethodPost, "/api/households", map[string]any{
 		"owner_name": "RateLimit Owner",
@@ -334,7 +335,7 @@ func (s *E2ESuite) TestPickup_RateLimit() {
 	householdID := hResp["data"].(map[string]any)["id"].(string)
 
 	got429 := false
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 60; i++ {
 		r := s.do(http.MethodPost, "/api/pickups", map[string]any{
 			"household_id": householdID,
 			"type":         "organic",
