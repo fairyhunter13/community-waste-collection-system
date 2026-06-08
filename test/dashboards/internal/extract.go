@@ -12,20 +12,20 @@ import (
 // Dashboard is a minimal representation of a Grafana dashboard JSON file,
 // sufficient for extracting panel targets and template variables.
 type Dashboard struct {
-	UID    string       `json:"uid"`
-	Title  string       `json:"title"`
-	Panels []Panel      `json:"panels"`
-	Tmpl   Templating   `json:"templating"`
+	UID    string     `json:"uid"`
+	Title  string     `json:"title"`
+	Panels []Panel    `json:"panels"`
+	Tmpl   Templating `json:"templating"`
 }
 
 // Panel represents a single Grafana panel (row panels recurse into sub-panels).
 type Panel struct {
-	ID          int      `json:"id"`
-	Type        string   `json:"type"`
-	Title       string   `json:"title"`
-	Datasource  DSRef    `json:"datasource"`
-	Targets     []Target `json:"targets"`
-	Panels      []Panel  `json:"panels"` // row-type panels contain sub-panels
+	ID         int      `json:"id"`
+	Type       string   `json:"type"`
+	Title      string   `json:"title"`
+	Datasource DSRef    `json:"datasource"`
+	Targets    []Target `json:"targets"`
+	Panels     []Panel  `json:"panels"` // row-type panels contain sub-panels
 }
 
 // DSRef holds a datasource reference (may be a UID string or an object).
@@ -34,6 +34,7 @@ type DSRef struct {
 	Type string `json:"type"`
 }
 
+// UnmarshalJSON accepts either a plain UID string or a {uid,type} object — Grafana ships both forms.
 func (d *DSRef) UnmarshalJSON(b []byte) error {
 	// Datasource can be a plain string UID or {"uid":"...","type":"..."}
 	var s string
@@ -64,7 +65,7 @@ type TemplateVar struct {
 
 // Load reads and parses a Grafana dashboard JSON file.
 func Load(path string) (*Dashboard, error) {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) // #nosec G304 -- dashboard fixture path, test-only
 	if err != nil {
 		return nil, err
 	}

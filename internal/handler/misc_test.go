@@ -59,7 +59,7 @@ func TestReadyCheck_ReturnsUnreadyWhenDBPingFails(t *testing.T) {
 		"host=127.0.0.1 port=1 dbname=fake user=fake password=fake sslmode=disable connect_timeout=1",
 	)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	hSvc := mocks.NewHouseholdService(t)
 	pSvc := mocks.NewPickupService(t)

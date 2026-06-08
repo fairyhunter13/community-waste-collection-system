@@ -75,11 +75,12 @@ func extractHandlerRoutes() []string {
 // extractOpenAPIPaths reads openapi.yaml and returns "METHOD /path" strings.
 // It uses a simple line-by-line parser — no YAML library dependency.
 func extractOpenAPIPaths(path string) ([]string, error) {
+	// #nosec G304 -- CLI input, developer tool
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var routes []string
 	var currentPath string
