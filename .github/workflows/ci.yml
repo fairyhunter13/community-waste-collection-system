@@ -167,7 +167,7 @@ jobs:
           TOTAL=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
           echo "Total unit coverage: ${TOTAL}%"
 
-          MIN=80
+          MIN=81
           if awk "BEGIN { exit ($TOTAL > $MIN ? 0 : 1) }"; then
             echo "PASS: coverage threshold met (${TOTAL}% > ${MIN}%)"
           else
