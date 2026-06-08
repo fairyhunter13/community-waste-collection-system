@@ -377,7 +377,7 @@ jobs:
       - name: Smoke test (Newman)
         run: |
           npx --yes newman@6 run api/community-waste.postman_collection.json \
-            --env-var "baseUrl=http://localhost:8080" \
+            --env-var "base_url=http://localhost:8080" \
             --bail \
             --reporters cli
 
