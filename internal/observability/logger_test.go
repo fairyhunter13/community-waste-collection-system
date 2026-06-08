@@ -14,11 +14,13 @@ import (
 	"github.com/fairyhunter13/community-waste-collection-system/internal/observability"
 )
 
+const logFormatJSON = "json"
+
 // U2: NewLogger emits valid JSON when LOG_FORMAT=json and includes the source
 // attribute when AddSource is true (which it always is for our config).
 func TestNewLogger_JSONOutput(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := &config.Config{LogFormat: "json", LogLevel: "info"}
+	cfg := &config.Config{LogFormat: logFormatJSON, LogLevel: "info"}
 	logger := observability.NewLogger(cfg)
 
 	// Redirect output to buf by wrapping the handler.
@@ -39,7 +41,7 @@ func TestNewLogger_JSONOutput(t *testing.T) {
 // TestNewLogger_DefaultLevelIsInfo checks that an unrecognised log level
 // string falls back to LevelInfo (the default branch).
 func TestNewLogger_DefaultLevelFallback(t *testing.T) {
-	cfg := &config.Config{LogFormat: "json", LogLevel: "unknown"}
+	cfg := &config.Config{LogFormat: logFormatJSON, LogLevel: "unknown"}
 	logger := observability.NewLogger(cfg)
 	assert.NotNil(t, logger)
 }
@@ -53,7 +55,7 @@ func TestNewLogger_TextFormat(t *testing.T) {
 
 // TestEnrichLogger_NoOp when context carries no OTel span.
 func TestEnrichLogger_NoSpanContext(t *testing.T) {
-	cfg := &config.Config{LogFormat: "json"}
+	cfg := &config.Config{LogFormat: logFormatJSON}
 	logger := observability.NewLogger(cfg)
 	enriched := observability.EnrichLogger(logger, context.Background())
 	// Must return the same (or equivalent) logger without panicking.

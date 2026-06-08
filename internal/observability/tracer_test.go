@@ -45,6 +45,6 @@ func TestInitTracer_Shutdown_CancelledCtx(t *testing.T) {
 	require.NotNil(t, shutdown)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // already cancelled
+	cancel()          // already cancelled
 	_ = shutdown(ctx) // must not panic
 }

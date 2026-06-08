@@ -127,8 +127,8 @@ func validateLogQL(t *testing.T, panelTitle, expr string, declaredVars map[strin
 		"panel %q: LogQL expression has no stream selector: %q", panelTitle, expr)
 
 	// Count balanced braces
-	open, close_ := strings.Count(expr, "{"), strings.Count(expr, "}")
-	assert.Equal(t, open, close_,
+	openCount, closeCount := strings.Count(expr, "{"), strings.Count(expr, "}")
+	assert.Equal(t, openCount, closeCount,
 		"panel %q: unbalanced braces in LogQL expression %q", panelTitle, expr)
 }
 
@@ -199,7 +199,7 @@ func TestDashboardsParseAsJSON(t *testing.T) {
 }
 
 var (
-	// Matches $variable or ${variable} or ${variable:modifier}
+	// Matches $variable or ${variable} or ${variable:modifier}.
 	grafanaVarRegex      = regexp.MustCompile(`\$\{?[a-zA-Z_][a-zA-Z0-9_:]*\}?`)
 	grafanaVarBraceRegex = regexp.MustCompile(`\$\{[^}]+\}`)
 )
