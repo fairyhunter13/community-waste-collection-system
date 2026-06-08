@@ -249,8 +249,7 @@ func (s *E2ESuite) TestPayment_FilterByDateRange() {
 }
 
 func (s *E2ESuite) TestPayment_ConfirmNonExistent() {
-	// Confirming a non-existent payment ID hits the conditional UPDATE which
-	// returns ErrConflict (rows affected = 0), mapped to 409.
+	// Service calls FindByID first; non-existent ID returns ErrNotFound → 404.
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	part, err := mw.CreateFormFile("proof", "receipt.jpg")
@@ -266,7 +265,7 @@ func (s *E2ESuite) TestPayment_ConfirmNonExistent() {
 	resp, err := s.client.Do(req)
 	s.Require().NoError(err)
 	defer resp.Body.Close()
-	s.Equal(http.StatusConflict, resp.StatusCode)
+	s.Equal(http.StatusNotFound, resp.StatusCode)
 }
 
 func (s *E2ESuite) TestPayment_ProofFileURLPopulated() {

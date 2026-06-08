@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"time"
 
@@ -31,6 +32,18 @@ type Payment struct {
 	ProofFileURL *string         `db:"proof_file_url" json:"proof_file_url"`
 	CreatedAt    time.Time       `db:"created_at"     json:"created_at"`
 	UpdatedAt    time.Time       `db:"updated_at"     json:"updated_at"`
+}
+
+// MarshalJSON serializes Payment with Amount always having 2 decimal places.
+func (p Payment) MarshalJSON() ([]byte, error) {
+	type Alias Payment
+	return json.Marshal(struct {
+		Alias
+		Amount string `json:"amount"`
+	}{
+		Alias:  Alias(p),
+		Amount: p.Amount.StringFixed(2),
+	})
 }
 
 // CreatePaymentRequest is the input for creating a new payment record.

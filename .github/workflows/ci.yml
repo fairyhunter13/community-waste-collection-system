@@ -167,6 +167,8 @@ jobs:
           sed -i 's|OTEL_EXPORTER_OTLP_ENDPOINT=.*|OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318|' .env
           echo "APP_ENV=ci" >> .env
           echo "WORKER_CANCEL_INTERVAL=5s" >> .env
+          echo "RATE_LIMIT_RPS=50" >> .env
+          echo "RATE_LIMIT_BURST=50" >> .env
 
       - name: Start infrastructure services
         run: |
@@ -196,6 +198,11 @@ jobs:
             echo "Waiting for MinIO ($i/30)..."
             sleep 3
           done
+
+      - name: Create MinIO bucket
+        run: |
+          docker compose -f deployments/docker-compose.yml exec -T minio \
+            mc mb local/waste-proofs --ignore-existing
 
       - name: Run database migrations
         run: |
