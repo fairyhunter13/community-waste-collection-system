@@ -65,7 +65,7 @@ jobs:
         run: docker build -t cwc-scan:ci -f build/Dockerfile .
 
       - name: Run Trivy image scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: cwc-scan:ci
           format: table
