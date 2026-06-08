@@ -16,22 +16,27 @@ import (
 
 const testBucket = "test-bucket"
 
-type mockS3 struct{ err error }
+type mockS3 struct {
+	putErr    error
+	deleteErr error
+	createErr error
+	headErr   error
+}
 
 func (m *mockS3) PutObject(_ context.Context, _ *s3.PutObjectInput, _ ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
-	return &s3.PutObjectOutput{}, m.err
+	return &s3.PutObjectOutput{}, m.putErr
 }
 
 func (m *mockS3) DeleteObject(_ context.Context, _ *s3.DeleteObjectInput, _ ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
-	return &s3.DeleteObjectOutput{}, m.err
+	return &s3.DeleteObjectOutput{}, m.deleteErr
 }
 
 func (m *mockS3) CreateBucket(_ context.Context, _ *s3.CreateBucketInput, _ ...func(*s3.Options)) (*s3.CreateBucketOutput, error) {
-	return &s3.CreateBucketOutput{}, m.err
+	return &s3.CreateBucketOutput{}, m.createErr
 }
 
 func (m *mockS3) HeadBucket(_ context.Context, _ *s3.HeadBucketInput, _ ...func(*s3.Options)) (*s3.HeadBucketOutput, error) {
-	return &s3.HeadBucketOutput{}, m.err
+	return &s3.HeadBucketOutput{}, m.headErr
 }
 
 func TestNewS3Client_ReturnsClient(t *testing.T) {
@@ -51,7 +56,7 @@ func TestNewS3Client_ReturnsClient(t *testing.T) {
 func TestUpload_Success(t *testing.T) {
 	const minioEndpoint = "http://minio:9000"
 	c := &S3Client{
-		client:   &mockS3{err: nil},
+		client:   &mockS3{},
 		bucket:   testBucket,
 		endpoint: minioEndpoint,
 	}
@@ -62,11 +67,66 @@ func TestUpload_Success(t *testing.T) {
 
 func TestUpload_S3Error_WrapsInternalFailure(t *testing.T) {
 	c := &S3Client{
-		client:   &mockS3{err: errors.New("connection refused")},
+		client:   &mockS3{putErr: errors.New("connection refused")},
 		bucket:   testBucket,
 		endpoint: "http://minio:9000",
 	}
 	_, err := c.Upload(context.Background(), "proof/abc.jpg", strings.NewReader("data"), 4, "image/jpeg")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, domain.ErrInternalFailure))
+}
+
+func TestEnsureBucket_BucketAlreadyExists(t *testing.T) {
+	c := &S3Client{client: &mockS3{}, bucket: testBucket}
+	require.NoError(t, c.EnsureBucket(context.Background()))
+}
+
+func TestEnsureBucket_CreatesBucketWhenMissing(t *testing.T) {
+	c := &S3Client{
+		client: &mockS3{headErr: errors.New("not found")},
+		bucket: testBucket,
+	}
+	require.NoError(t, c.EnsureBucket(context.Background()))
+}
+
+func TestEnsureBucket_CreateFails(t *testing.T) {
+	c := &S3Client{
+		client: &mockS3{
+			headErr:   errors.New("not found"),
+			createErr: errors.New("access denied"),
+		},
+		bucket: testBucket,
+	}
+	err := c.EnsureBucket(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), testBucket)
+}
+
+func TestDelete_Success(t *testing.T) {
+	c := &S3Client{client: &mockS3{}, bucket: testBucket}
+	require.NoError(t, c.Delete(context.Background(), "proof/abc.jpg"))
+}
+
+func TestDelete_Error(t *testing.T) {
+	c := &S3Client{
+		client: &mockS3{deleteErr: errors.New("not found")},
+		bucket: testBucket,
+	}
+	err := c.Delete(context.Background(), "proof/abc.jpg")
+	require.Error(t, err)
+}
+
+func TestPing_Success(t *testing.T) {
+	c := &S3Client{client: &mockS3{}, bucket: testBucket}
+	require.NoError(t, c.Ping(context.Background()))
+}
+
+func TestPing_Error(t *testing.T) {
+	c := &S3Client{
+		client: &mockS3{headErr: errors.New("unreachable")},
+		bucket: testBucket,
+	}
+	err := c.Ping(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), testBucket)
 }
