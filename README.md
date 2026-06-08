@@ -28,7 +28,7 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
 
 ---
 
-## Table of Contents — Quick Links
+## Quick Links
 
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
@@ -331,7 +331,7 @@ make bench
 
 ## Data Model
 
-```
+```text
 households
   id          UUID PK
   owner_name  TEXT NOT NULL
@@ -578,7 +578,7 @@ Prometheus loads `alerts.yml` via `rule_files:` in `deployments/prometheus.yml`.
 
 ## Architecture
 
-```
+```text
 cmd/api/
   main.go             ← DI wiring + graceful shutdown
 
@@ -660,7 +660,7 @@ sequenceDiagram
     S-->>H: success
     H-->>C: 200
 
-    Note over W,DB: BR-04 every WORKER_CANCEL_INTERVAL
+    Note over W, DB: BR-04 every WORKER_CANCEL_INTERVAL
     W->>DB: SELECT organic + pending + created_at < now-N days
     DB-->>W: expired rows
     W->>DB: UPDATE … SET status='canceled' WHERE status='pending'
