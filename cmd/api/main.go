@@ -44,7 +44,6 @@ func main() {
 	}
 
 	db, s3 := mustInitInfra(ctx, cfg, logger)
-	defer func() { _ = db.Close() }()
 
 	e := buildHTTPServer(cfg, logger, db, s3)
 
@@ -56,7 +55,7 @@ func main() {
 	startAPIServer(e, cfg, logger)
 
 	awaitShutdown()
-	gracefulShutdown(e, metricsSrv, shutdownTracer, workerCancel, wg, cfg, logger)
+	gracefulShutdown(e, metricsSrv, shutdownTracer, workerCancel, wg, db, cfg, logger)
 }
 
 // mustInitInfra connects the DB and S3 storage. Exits the process on failure;
@@ -94,12 +93,13 @@ func buildHTTPServer(cfg *config.Config, logger *slog.Logger, db *sqlx.DB, s3 *s
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
+	e.IPExtractor = echo.ExtractIPDirect()
 	e.Use(middleware.RecoverMiddleware(logger))
 	e.Use(middleware.RequestLogger(logger))
 	e.Use(middleware.OtelTrace(cfg.OTELServiceName))
 	e.Use(middleware.RequestMetrics())
 
-	h := handler.New(householdSvc, pickupSvc, paymentSvc, reportSvc, cfg, db)
+	h := handler.New(householdSvc, pickupSvc, paymentSvc, reportSvc, cfg, db, s3)
 	h.RegisterRoutes(e)
 	return e
 }
@@ -117,7 +117,7 @@ func startBackgroundWorker(ctx context.Context, cfg *config.Config, pickupRepo d
 
 func startDebugServer(cfg *config.Config, logger *slog.Logger) {
 	go func() {
-		debugAddr := ":" + cfg.DebugPort
+		debugAddr := "127.0.0.1:" + cfg.DebugPort
 		logger.Info("starting pprof server", "addr", debugAddr)
 		if err := http.ListenAndServe(debugAddr, nil); err != nil && err != http.ErrServerClosed { //nolint:gosec
 			logger.Error("pprof server error", "error", err)
@@ -169,19 +169,14 @@ func gracefulShutdown(
 	shutdownTracer func(context.Context) error,
 	workerCancel context.CancelFunc,
 	wg *sync.WaitGroup,
+	db *sqlx.DB,
 	cfg *config.Config,
 	logger *slog.Logger,
 ) {
 	logger.Info("shutting down")
 
-	// Background context: shutdown must not inherit a cancelled upstream context.
-	httpShutdownCtx, httpShutdownRelease := context.WithTimeout(context.Background(), cfg.HTTPShutdownTimeout) //nolint:contextcheck
-	defer httpShutdownRelease()
-
-	if err := e.Shutdown(httpShutdownCtx); err != nil {
-		logger.Error("HTTP server shutdown", "error", err)
-	}
-
+	// Drain the background worker before stopping HTTP so in-flight DB
+	// writes from the worker complete before the connection pool closes.
 	workerCancel()
 	workerDone := make(chan struct{})
 	go func() {
@@ -195,6 +190,14 @@ func gracefulShutdown(
 		logger.Error("worker shutdown timed out — abandoning", "timeout", cfg.WorkerShutdownTimeout)
 	}
 
+	// Background context: shutdown must not inherit a cancelled upstream context.
+	httpShutdownCtx, httpShutdownRelease := context.WithTimeout(context.Background(), cfg.HTTPShutdownTimeout) //nolint:contextcheck
+	defer httpShutdownRelease()
+
+	if err := e.Shutdown(httpShutdownCtx); err != nil {
+		logger.Error("HTTP server shutdown", "error", err)
+	}
+
 	if metricsSrv != nil {
 		if err := metricsSrv.Shutdown(httpShutdownCtx); err != nil {
 			logger.Error("metrics server shutdown", "error", err)
@@ -204,6 +207,10 @@ func gracefulShutdown(
 		if err := shutdownTracer(httpShutdownCtx); err != nil {
 			logger.Error("tracer shutdown", "error", err)
 		}
+	}
+
+	if err := db.Close(); err != nil {
+		logger.Error("database close", "error", err)
 	}
 
 	logger.Info("shutdown complete")

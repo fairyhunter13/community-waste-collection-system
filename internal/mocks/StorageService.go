@@ -83,6 +83,86 @@ func (_c *StorageService_Upload_Call) RunAndReturn(run func(context.Context, str
 	return _c
 }
 
+// Delete provides a mock function with given fields: ctx, key
+func (_m *StorageService) Delete(ctx context.Context, key string) error {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
+	}
+
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		return rf(ctx, key)
+	}
+	return ret.Error(0)
+}
+
+// StorageService_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
+type StorageService_Delete_Call struct {
+	*mock.Call
+}
+
+func (_e *StorageService_Expecter) Delete(ctx interface{}, key interface{}) *StorageService_Delete_Call {
+	return &StorageService_Delete_Call{Call: _e.mock.On("Delete", ctx, key)}
+}
+
+func (_c *StorageService_Delete_Call) Run(run func(ctx context.Context, key string)) *StorageService_Delete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *StorageService_Delete_Call) Return(err error) *StorageService_Delete_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *StorageService_Delete_Call) RunAndReturn(run func(context.Context, string) error) *StorageService_Delete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Ping provides a mock function with given fields: ctx
+func (_m *StorageService) Ping(ctx context.Context) error {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Ping")
+	}
+
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		return rf(ctx)
+	}
+	return ret.Error(0)
+}
+
+// StorageService_Ping_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Ping'
+type StorageService_Ping_Call struct {
+	*mock.Call
+}
+
+func (_e *StorageService_Expecter) Ping(ctx interface{}) *StorageService_Ping_Call {
+	return &StorageService_Ping_Call{Call: _e.mock.On("Ping", ctx)}
+}
+
+func (_c *StorageService_Ping_Call) Run(run func(ctx context.Context)) *StorageService_Ping_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *StorageService_Ping_Call) Return(err error) *StorageService_Ping_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *StorageService_Ping_Call) RunAndReturn(run func(context.Context) error) *StorageService_Ping_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewStorageService creates a new instance of StorageService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewStorageService(t interface {

@@ -5,7 +5,7 @@ INSERT INTO households (id, owner_name, address)
 VALUES
   ('11111111-1111-1111-1111-111111111111', 'Budi Santoso',    'Jl. Merdeka No. 1, Jakarta'),
   ('22222222-2222-2222-2222-222222222222', 'Siti Rahayu',     'Jl. Pahlawan No. 5, Bandung'),
-  ('33333333-3333-3333-3333-333333333333', 'Ahmad Fauzi',     'Jl. Sudirman No. 10, Surabaya'),
+  ('33333333-3333-3333-3333-333333333333', 'Ahmad Fauzi',     'Jl. Sudirman No. 10, Medan'),
   ('44444444-4444-4444-4444-444444444444', 'Dewi Lestari',    'Jl. Diponegoro No. 3, Yogyakarta'),
   ('55555555-5555-5555-5555-555555555555', 'Rudi Hartono',    'Jl. Imam Bonjol No. 7, Semarang')
 ON CONFLICT (id) DO NOTHING;

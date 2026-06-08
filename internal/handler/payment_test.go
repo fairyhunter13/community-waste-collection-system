@@ -38,7 +38,7 @@ func (s *PaymentHandlerSuite) SetupTest() {
 	s.pSvc = mocks.NewPickupService(s.T())
 	s.paySvc = mocks.NewPaymentService(s.T())
 	s.rptSvc = mocks.NewReportService(s.T())
-	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load(), nil)
+	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load(), nil, nil)
 	s.h.RegisterRoutes(s.echo)
 }
 
@@ -80,7 +80,8 @@ func (s *PaymentHandlerSuite) TestConfirmPayment_200() {
 	mw := multipart.NewWriter(&buf)
 	part, err := newProofPart(mw, "receipt.jpg", "image/jpeg")
 	s.Require().NoError(err)
-	_, err = part.Write([]byte("fake-image-data"))
+	// JPEG magic bytes so the magic-byte sniff in the handler accepts the file.
+	_, err = part.Write([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00})
 	s.Require().NoError(err)
 	s.Require().NoError(mw.Close())
 
@@ -167,7 +168,8 @@ func (s *PaymentHandlerSuite) TestConfirmPayment_404() {
 	mw := multipart.NewWriter(&buf)
 	part, err := newProofPart(mw, "receipt.jpg", "image/jpeg")
 	s.Require().NoError(err)
-	_, err = part.Write([]byte("fake-image-data"))
+	// JPEG magic bytes so the magic-byte sniff in the handler accepts the file.
+	_, err = part.Write([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00})
 	s.Require().NoError(err)
 	s.Require().NoError(mw.Close())
 

@@ -3,6 +3,7 @@ package observability
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -17,11 +18,19 @@ import (
 
 // InitTracer initialises the global OTel tracer provider with an OTLP HTTP exporter.
 // The returned shutdown function must be called on application exit to flush spans.
+//
+// TLS behaviour: OTEL_EXPORTER_OTLP_TLS_INSECURE=true (default) disables TLS
+// verification, which is appropriate for local docker-compose where Jaeger runs
+// on plain HTTP. Set to "false" for production deployments behind TLS.
 func InitTracer(ctx context.Context, cfg *config.Config) (trace.Tracer, func(context.Context) error, error) {
-	exporter, err := otlptracehttp.New(ctx,
+	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpointURL(cfg.OTELEndpoint),
-		otlptracehttp.WithInsecure(),
-	)
+	}
+	if os.Getenv("OTEL_EXPORTER_OTLP_TLS_INSECURE") != "false" {
+		opts = append(opts, otlptracehttp.WithInsecure())
+	}
+
+	exporter, err := otlptracehttp.New(ctx, opts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create OTLP exporter: %w", err)
 	}

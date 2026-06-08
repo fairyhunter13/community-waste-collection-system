@@ -64,6 +64,7 @@ type Handler struct {
 	pickupSvc    domain.PickupService
 	paymentSvc   domain.PaymentService
 	reportSvc    domain.ReportService
+	storage      domain.StorageService
 	validate     *validator.Validate
 	cfg          *config.Config
 	db           *sqlx.DB
@@ -77,12 +78,14 @@ func New(
 	rSvc domain.ReportService,
 	cfg *config.Config,
 	db *sqlx.DB,
+	storage domain.StorageService,
 ) *Handler {
 	return &Handler{
 		householdSvc: hSvc,
 		pickupSvc:    pSvc,
 		paymentSvc:   paymentSvc,
 		reportSvc:    rSvc,
+		storage:      storage,
 		validate:     newValidator(db),
 		cfg:          cfg,
 		db:           db,
@@ -141,7 +144,17 @@ func (h *Handler) echoErrorHandler(err error, c echo.Context) {
 func (h *Handler) RegisterRoutes(e *echo.Echo) {
 	e.HTTPErrorHandler = h.echoErrorHandler
 	e.Use(middleware.RequestID())
-	e.Use(echomw.Secure())
+	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
+		AllowOrigins: []string{},
+	}))
+	e.Use(echomw.SecureWithConfig(echomw.SecureConfig{
+		XSSProtection:         "1; mode=block",
+		ContentTypeNosniff:    "nosniff",
+		XFrameOptions:         "DENY",
+		HSTSMaxAge:            31536000,
+		ContentSecurityPolicy: "default-src 'none'",
+		ReferrerPolicy:        "no-referrer",
+	}))
 
 	// JSON body cap for non-upload endpoints. The /confirm proof upload sits
 	// behind its own http.MaxBytesReader sized to cfg.MaxUploadSizeMB, so the

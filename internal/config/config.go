@@ -44,6 +44,7 @@ type Config struct {
 
 	WorkerCancelInterval    time.Duration
 	WorkerOrganicCutoffDays int
+	WorkerQueryTimeout      time.Duration
 
 	HTTPReadHeaderTimeout time.Duration
 	HTTPReadTimeout       time.Duration
@@ -91,6 +92,7 @@ func Load() *Config {
 
 		WorkerCancelInterval:    getEnvDuration("WORKER_CANCEL_INTERVAL", time.Hour),
 		WorkerOrganicCutoffDays: getEnvInt("WORKER_ORGANIC_CUTOFF_DAYS", 3),
+		WorkerQueryTimeout:      getEnvDuration("WORKER_QUERY_TIMEOUT", 5*time.Second),
 
 		HTTPReadHeaderTimeout: getEnvDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
 		HTTPReadTimeout:       getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),

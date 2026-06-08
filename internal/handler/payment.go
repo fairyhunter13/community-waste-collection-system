@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -15,10 +17,9 @@ import (
 	"github.com/fairyhunter13/community-waste-collection-system/internal/observability"
 )
 
-// allowedProofMIME is the closed allowlist of Content-Type values the proof
-// upload endpoint will accept. Any value outside this set returns 400 — we do
-// not attempt content sniffing or normalisation because the wire-level type
-// is the contract clients agree to.
+// allowedProofMIME is the closed allowlist for proof upload Content-Type values
+// AND for the magic-byte sniff. Both the declared type AND the sniffed type
+// must appear in this set; a mismatch returns 400.
 var allowedProofMIME = map[string]bool{
 	"image/jpeg":      true,
 	"image/png":       true,
@@ -98,6 +99,9 @@ func (h *Handler) ListPayments(c echo.Context) error {
 }
 
 // ConfirmPayment handles PUT /api/payments/:id/confirm with multipart file upload.
+// It enforces two content-type guards: the declared Content-Type part header must
+// be in the allowlist, AND the magic bytes of the file must match the declared type
+// (prevents a client lying about its content type to bypass the filter).
 func (h *Handler) ConfirmPayment(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -127,13 +131,31 @@ func (h *Handler) ConfirmPayment(c echo.Context) error {
 	}
 	defer func() { _ = file.Close() }()
 
-	contentType := header.Header.Get("Content-Type")
-	if !allowedProofMIME[contentType] {
+	// Gate 1: declared Content-Type must be in the allowlist.
+	declaredType := header.Header.Get("Content-Type")
+	if !allowedProofMIME[declaredType] {
 		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR",
 			"unsupported proof type: must be image/jpeg, image/png, or application/pdf")
 	}
 
-	payment, err := h.paymentSvc.Confirm(c.Request().Context(), id, file, header.Size, contentType)
+	// Gate 2: magic-byte sniff — read first 512 bytes, detect the actual type,
+	// and reject if it does not match the declared type. io.MultiReader rewinds
+	// so the full file body is still available for the service upload call.
+	sniffBuf := make([]byte, 512)
+	n, err := io.ReadFull(file, sniffBuf)
+	if err != nil && err != io.ErrUnexpectedEOF {
+		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "could not read proof file")
+	}
+	sniffedType := http.DetectContentType(sniffBuf[:n])
+	if !allowedProofMIME[sniffedType] {
+		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR",
+			"proof file content does not match a supported type")
+	}
+
+	// Rewind: combine the already-read prefix with the remainder.
+	fullReader := io.MultiReader(bytes.NewReader(sniffBuf[:n]), file)
+
+	payment, err := h.paymentSvc.Confirm(c.Request().Context(), id, fullReader, header.Size, declaredType)
 	if err != nil {
 		return mapError(c, err)
 	}

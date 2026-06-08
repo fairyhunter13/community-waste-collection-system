@@ -18,9 +18,10 @@ import (
 // OrganicCanceler periodically cancels organic pickups that have been pending
 // longer than the configured cutoff period without being scheduled.
 type OrganicCanceler struct {
-	repo     domain.PickupRepository
-	interval time.Duration
-	cutoff   time.Duration
+	repo         domain.PickupRepository
+	interval     time.Duration
+	cutoff       time.Duration
+	queryTimeout time.Duration
 }
 
 // NewOrganicCanceler creates a new OrganicCanceler. The logger parameter is
@@ -28,9 +29,10 @@ type OrganicCanceler struct {
 // observability.FromContext so every cycle log carries its OTel trace_id.
 func NewOrganicCanceler(repo domain.PickupRepository, _ *slog.Logger, cfg *config.Config) *OrganicCanceler {
 	return &OrganicCanceler{
-		repo:     repo,
-		interval: cfg.WorkerCancelInterval,
-		cutoff:   time.Duration(cfg.WorkerOrganicCutoffDays) * 24 * time.Hour,
+		repo:         repo,
+		interval:     cfg.WorkerCancelInterval,
+		cutoff:       time.Duration(cfg.WorkerOrganicCutoffDays) * 24 * time.Hour,
+		queryTimeout: cfg.WorkerQueryTimeout,
 	}
 }
 
@@ -81,7 +83,6 @@ func (w *OrganicCanceler) run(ctx context.Context) {
 
 	observability.WorkerCyclesTotal.Inc()
 
-	// Each cycle gets a unique id for log correlation independent of trace_id.
 	cycleID := uuid.NewString()
 	log := observability.FromContext(ctx).With(
 		slog.String("worker", "organic_canceler"),
@@ -91,7 +92,10 @@ func (w *OrganicCanceler) run(ctx context.Context) {
 
 	cutoffTime := time.Now().UTC().Add(-w.cutoff)
 
-	pickups, err := w.repo.FindExpiredOrganic(ctx, cutoffTime)
+	findCtx, findCancel := context.WithTimeout(ctx, w.queryTimeout)
+	defer findCancel()
+
+	pickups, err := w.repo.FindExpiredOrganic(findCtx, cutoffTime)
 	if err != nil {
 		log.ErrorContext(ctx, "find stale organic pickups failed", slog.Any("err", err))
 		span.RecordError(err)
@@ -115,7 +119,10 @@ func (w *OrganicCanceler) run(ctx context.Context) {
 		ids[i] = p.ID
 	}
 
-	if err := w.repo.BulkCancel(ctx, ids); err != nil {
+	cancelCtx, cancelCancel := context.WithTimeout(ctx, w.queryTimeout)
+	defer cancelCancel()
+
+	if err := w.repo.BulkCancel(cancelCtx, ids); err != nil {
 		log.ErrorContext(ctx, "bulk cancel organic pickups failed", slog.Any("err", err), slog.Int("count", len(ids)))
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "bulk cancel failed")

@@ -32,5 +32,5 @@ go.work.sum
 # .vscode/
 *.pdf
 
-# Raw requirements extract — contains company-identifying information
+# Local-only development notes (not part of the product)
 REQUIREMENTS_RAW.md

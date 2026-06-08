@@ -12,11 +12,11 @@ CREATE TABLE IF NOT EXISTS waste_pickups (
     updated_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_pickups_household_id ON waste_pickups(household_id);
-CREATE INDEX idx_pickups_status       ON waste_pickups(status);
-CREATE INDEX idx_pickups_type_status  ON waste_pickups(type, status);
+CREATE INDEX IF NOT EXISTS idx_pickups_household_id ON waste_pickups(household_id);
+CREATE INDEX IF NOT EXISTS idx_pickups_status       ON waste_pickups(status);
+CREATE INDEX IF NOT EXISTS idx_pickups_type_status  ON waste_pickups(type, status);
 
 -- Partial index for the organic auto-cancel worker query
-CREATE INDEX idx_pickups_organic_pending_created
+CREATE INDEX IF NOT EXISTS idx_pickups_organic_pending_created
     ON waste_pickups(created_at)
     WHERE type = 'organic' AND status = 'pending';

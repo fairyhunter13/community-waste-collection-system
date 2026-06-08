@@ -86,12 +86,13 @@ type PaymentRepository interface {
 
 // PaymentService is the business-rule entry point for payment operations.
 //
-// Create produces a pending payment for a completed pickup; Confirm uploads a
-// proof file to object storage and flips the row to paid. Confirm validates
-// the upload's Content-Type against an allowlist (image/jpeg, image/png,
-// application/pdf) and sniffs the magic bytes before persisting — the
-// client-supplied Content-Type is never trusted. All methods emit OTel spans
-// and map storage / repository errors into the [ErrValidation], [ErrNotFound],
+// Create derives the canonical amount from domain.PaymentAmounts keyed on the
+// pickup's waste type; client-supplied amount values are ignored. Confirm
+// uploads a proof file to object storage and flips the row to paid; on DB
+// write failure the uploaded object is deleted as a best-effort cleanup. The
+// handler layer validates the declared Content-Type against an allowlist and
+// sniffs magic bytes before calling Confirm. All methods emit OTel spans and
+// map storage / repository errors into the [ErrValidation], [ErrNotFound],
 // and [ErrConflict] sentinels.
 type PaymentService interface {
 	Create(ctx context.Context, req CreatePaymentRequest) (*Payment, error)

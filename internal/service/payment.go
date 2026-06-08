@@ -56,10 +56,15 @@ func (s *paymentService) Create(ctx context.Context, req domain.CreatePaymentReq
 		return nil, fmt.Errorf("waste pickup does not belong to the specified household: %w", domain.ErrBusinessRule)
 	}
 
+	// Server-side amount derivation: the canonical amount is determined by the
+	// pickup type, not the client-supplied value. This prevents BR-05 bypass.
+	canonicalAmount := domain.PaymentAmounts[pickup.Type]
+	span.SetAttributes(attribute.String("payment.canonical_amount", canonicalAmount.StringFixed(2)))
+
 	payment := &domain.Payment{
 		HouseholdID: req.HouseholdID,
 		WasteID:     req.WasteID,
-		Amount:      req.Amount,
+		Amount:      canonicalAmount,
 		Status:      domain.PaymentStatusPending,
 	}
 	if err := s.repo.Create(ctx, payment); err != nil {
@@ -157,6 +162,11 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		log.ErrorContext(ctx, "confirm failed", slog.String("payment_id", id.String()), slog.Any("err", err))
+		// Best-effort cleanup: remove the orphaned S3 object so storage does not leak.
+		if delErr := s.storage.Delete(ctx, key); delErr != nil {
+			log.WarnContext(ctx, "orphan S3 cleanup failed",
+				slog.String("key", key), slog.Any("err", delErr))
+		}
 		return nil, err
 	}
 
