@@ -528,3 +528,42 @@ func (s *E2ESuite) TestPickup_RateLimit() {
 	// Cleanup
 	s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
 }
+
+// TestPickup_InvalidWasteType_400 verifies that the validator.v10 enum binding
+// rejects an unrecognised waste type at the handler layer (TR-6).
+func (s *E2ESuite) TestPickup_InvalidWasteType_400() {
+	var hResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "Invalid Type Owner",
+		"address":    "Jl. Invalid Type No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+	defer s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{
+		"household_id": householdID,
+		"type":         "radioactive",
+	})
+	defer resp.Body.Close()
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	var body map[string]any
+	s.decode(resp, &body)
+	s.False(body["success"].(bool), "success must be false for a validation error")
+	s.NotEmpty(body["code"], "error code must be present")
+}
+
+// TestPickup_InvalidStatusFilter_400 verifies that an unrecognised status
+// query parameter is rejected with a 400 envelope (TR-6 list-endpoint
+// validation).
+func (s *E2ESuite) TestPickup_InvalidStatusFilter_400() {
+	resp := s.do(http.MethodGet, "/api/pickups?status=garbage", nil)
+	defer resp.Body.Close()
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	var body map[string]any
+	s.decode(resp, &body)
+	s.False(body["success"].(bool), "success must be false for a validation error")
+}
