@@ -61,24 +61,24 @@ and (2) data-integrity enforcement for business rules.
 ```mermaid
 graph TD
     subgraph households
-        H_PK["PRIMARY KEY (id)\nuuid_generate_v4()"]
+        H_PK["PRIMARY KEY (id)<br/>uuid_generate_v4()"]
     end
 
     subgraph waste_pickups
         WP_PK["PRIMARY KEY (id)"]
-        WP_FK["FOREIGN KEY (household_id)\nON DELETE CASCADE"]
-        WP_IDX1["INDEX (household_id)\nfast lookup for list-by-household"]
-        WP_IDX2["INDEX (status)\nfast filter for worker + list queries"]
-        WP_UNIQ["PARTIAL UNIQUE (household_id)\nWHERE status = 'pending'\nuq_pickups_pending_per_household\nBR-01 DB-level guard"]
+        WP_FK["FOREIGN KEY (household_id)<br/>ON DELETE CASCADE"]
+        WP_IDX1["INDEX (household_id)<br/>fast lookup for list-by-household"]
+        WP_IDX2["INDEX (status)<br/>fast filter for worker + list queries"]
+        WP_UNIQ["PARTIAL UNIQUE (household_id)<br/>WHERE status = 'pending'<br/>uq_pickups_pending_per_household<br/>BR-01 DB-level guard"]
     end
 
     subgraph payments
         P_PK["PRIMARY KEY (id)"]
-        P_FK1["FOREIGN KEY (waste_id)\nON DELETE CASCADE"]
-        P_FK2["FOREIGN KEY (household_id)\nON DELETE CASCADE"]
-        P_IDX1["UNIQUE (waste_id)\none payment per pickup"]
-        P_UNIQ["PARTIAL UNIQUE (household_id)\nWHERE status = 'pending'\nuq_payments_one_pending_per_household\nBR-01 + BR-05 DB-level guard"]
-        P_IDX2["INDEX (household_id, status)\nfast filter for list + report queries"]
+        P_FK1["FOREIGN KEY (waste_id)<br/>ON DELETE CASCADE"]
+        P_FK2["FOREIGN KEY (household_id)<br/>ON DELETE CASCADE"]
+        P_IDX1["UNIQUE (waste_id)<br/>one payment per pickup"]
+        P_UNIQ["PARTIAL UNIQUE (household_id)<br/>WHERE status = 'pending'<br/>uq_payments_one_pending_per_household<br/>BR-01 + BR-05 DB-level guard"]
+        P_IDX2["INDEX (household_id, status)<br/>fast filter for list + report queries"]
     end
 ```
 

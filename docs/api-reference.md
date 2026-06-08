@@ -10,30 +10,30 @@ the machine-readable API artefacts.
 ```mermaid
 graph TD
     subgraph Households
-        H1["POST /api/households\nCreate"]
-        H2["GET /api/households\nList"]
-        H3["GET /api/households/:id\nGet"]
-        H4["DELETE /api/households/:id\nDelete + cascade"]
+        H1["POST /api/households<br/>Create"]
+        H2["GET /api/households<br/>List"]
+        H3["GET /api/households/:id<br/>Get"]
+        H4["DELETE /api/households/:id<br/>Delete + cascade"]
     end
 
     subgraph Pickups
-        P1["POST /api/pickups\nCreate (rate-limited)"]
-        P2["GET /api/pickups\nList + filter"]
-        P3["PUT /api/pickups/:id/schedule\nSchedule"]
-        P4["PUT /api/pickups/:id/complete\nComplete (auto-payment)"]
-        P5["PUT /api/pickups/:id/cancel\nCancel"]
+        P1["POST /api/pickups<br/>Create (rate-limited)"]
+        P2["GET /api/pickups<br/>List + filter"]
+        P3["PUT /api/pickups/:id/schedule<br/>Schedule"]
+        P4["PUT /api/pickups/:id/complete<br/>Complete (auto-payment)"]
+        P5["PUT /api/pickups/:id/cancel<br/>Cancel"]
     end
 
     subgraph Payments
-        PA1["POST /api/payments\nCreate"]
-        PA2["GET /api/payments\nList + filter"]
-        PA3["PUT /api/payments/:id/confirm\nConfirm with proof upload"]
+        PA1["POST /api/payments<br/>Create"]
+        PA2["GET /api/payments<br/>List + filter"]
+        PA3["PUT /api/payments/:id/confirm<br/>Confirm with proof upload"]
     end
 
     subgraph Reports
-        R1["GET /api/reports/waste-summary\nAggregate by type + status"]
-        R2["GET /api/reports/payment-summary\nAggregate by status + revenue"]
-        R3["GET /api/reports/households/:id/history\nPickup + payment history"]
+        R1["GET /api/reports/waste-summary<br/>Aggregate by type + status"]
+        R2["GET /api/reports/payment-summary<br/>Aggregate by status + revenue"]
+        R3["GET /api/reports/households/:id/history<br/>Pickup + payment history"]
     end
 ```
 
