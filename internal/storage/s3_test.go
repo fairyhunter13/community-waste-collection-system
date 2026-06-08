@@ -22,6 +22,14 @@ func (m *mockS3) PutObject(_ context.Context, _ *s3.PutObjectInput, _ ...func(*s
 	return &s3.PutObjectOutput{}, m.err
 }
 
+func (m *mockS3) CreateBucket(_ context.Context, _ *s3.CreateBucketInput, _ ...func(*s3.Options)) (*s3.CreateBucketOutput, error) {
+	return &s3.CreateBucketOutput{}, m.err
+}
+
+func (m *mockS3) HeadBucket(_ context.Context, _ *s3.HeadBucketInput, _ ...func(*s3.Options)) (*s3.HeadBucketOutput, error) {
+	return &s3.HeadBucketOutput{}, m.err
+}
+
 func TestNewS3Client_ReturnsClient(t *testing.T) {
 	cfg := &config.Config{
 		S3Endpoint:     "http://localhost:9000",
