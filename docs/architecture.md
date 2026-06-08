@@ -192,13 +192,13 @@ graph TD
     main -->|NewPaymentRepository| PAR["PaymentRepository (sqlx)"]
     main -->|NewHouseholdRepository| HR["HouseholdRepository (sqlx)"]
     main -->|NewStorageClient| SC["StorageClient (MinIO)"]
-    main -->|NewPickupService(PR, PAR, db)| PS["PickupService"]
-    main -->|NewPaymentService(PAR, SC)| PAS["PaymentService"]
-    main -->|NewHouseholdService(HR)| HS["HouseholdService"]
-    main -->|NewHandler(PS, PAS, HS, ...)| H["Echo Handler"]
+    main -->|"NewPickupService(PR + PAR + db)"| PS["PickupService"]
+    main -->|"NewPaymentService(PAR + SC)"| PAS["PaymentService"]
+    main -->|"NewHouseholdService(HR)"| HS["HouseholdService"]
+    main -->|"NewHandler(PS + PAS + HS)"| H["Echo Handler"]
 
     TestPickupService["test: pickup_test.go"] -->|mocks.NewPickupRepository| MockPR["mock PickupRepository"]
     TestPickupService -->|mocks.NewPaymentRepository| MockPAR["mock PaymentRepository"]
-    TestPickupService -->|sqlmock DB| MockDB["mock *sqlx.DB"]
-    TestPickupService -->|NewPickupService(MockPR, MockPAR, MockDB)| PS
+    TestPickupService -->|sqlmock DB| MockDB["mock sqlx.DB"]
+    TestPickupService -->|"NewPickupService(MockPR + MockPAR + MockDB)"| PS
 ```

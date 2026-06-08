@@ -19,8 +19,8 @@ flowchart TD
 
     Q3 -- Yes --> Q4{Panic in handler?}
     Q4 -- Yes --> Fix3["Check app logs for 'panic'\nrunWithRecover logs the stack trace\nInvestigate the offending request body"]
-    Q4 -- No --> Q5{Storage (MinIO) unreachable?}
-    Q5 -- Yes --> Fix4["Restart minio container\nCheck S3_ENDPOINT, S3_BUCKET_NAME\nRun mc admin info to verify bucket exists"]
+    Q4 -- No --> Q5{MinIO storage unreachable?}
+    Q5 -- Yes --> Fix4["Restart minio container\nCheck S3_ENDPOINT and S3_BUCKET_NAME\nRun mc admin info to verify bucket exists"]
     Q5 -- No --> Fix5["Check slog JSON output for\ntrace_id + error fields\nCorrelate trace_id in Jaeger UI"]
 
     Q3 -- No --> Q6{Seeing 429 on POST /api/pickups?}
