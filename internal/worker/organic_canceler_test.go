@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -119,6 +120,38 @@ func (s *OrganicCancelerSuite) TestContextCancelExitsPromptly() {
 		// exited promptly — pass
 	case <-time.After(2 * time.Second):
 		s.Fail("Start did not exit within 2s after context cancellation")
+	}
+}
+
+// TestRunWithRecover_PanicDoesNotKillWorker verifies that a panic inside a
+// worker cycle is caught by runWithRecover and that the loop continues until
+// the context is cancelled.
+func (s *OrganicCancelerSuite) TestRunWithRecover_PanicDoesNotKillWorker() {
+	var firstCall atomic.Bool
+	s.repo.On("FindExpiredOrganic", mock.Anything, mock.AnythingOfType("time.Time")).
+		Run(func(_ mock.Arguments) {
+			if firstCall.CompareAndSwap(false, true) {
+				panic("simulated db panic")
+			}
+		}).
+		Return([]*domain.WastePickup{}, nil).
+		Maybe()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 350*time.Millisecond)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		w := worker.NewOrganicCanceler(s.repo, s.logger, s.cfg)
+		w.Start(ctx)
+	}()
+
+	select {
+	case <-done:
+		// Start returned after ctx cancelled — panic was recovered.
+	case <-time.After(3 * time.Second):
+		s.Fail("Start hung; runWithRecover likely did not recover the panic")
 	}
 }
 

@@ -175,3 +175,30 @@ func (s *PaymentServiceSuite) TestList_RepoError_Propagates() {
 	_, _, err := s.svc.List(s.T().Context(), filter)
 	s.Require().ErrorIs(err, domain.ErrInternalFailure)
 }
+
+func (s *PaymentServiceSuite) TestConfirm_FindByIDFails_Propagates() {
+	id := uuid.New()
+	s.repo.On("FindByID", mock.Anything, id).
+		Return((*domain.Payment)(nil), domain.ErrNotFound)
+
+	_, err := s.svc.Confirm(s.T().Context(), id, bytes.NewReader([]byte("data")), 4, "image/jpeg")
+	s.Require().ErrorIs(err, domain.ErrNotFound)
+}
+
+func (s *PaymentServiceSuite) TestConfirm_RepoConfirmFails_DeletesUploadedObject() {
+	id := uuid.New()
+	proofURL := "http://localhost:9000/waste-proofs/proof.jpg"
+
+	s.repo.On("FindByID", mock.Anything, id).Return(&domain.Payment{
+		ID:     id,
+		Status: domain.PaymentStatusPending,
+	}, nil)
+	s.storage.On("Upload", mock.Anything, mock.AnythingOfType("string"),
+		mock.Anything, int64(4), "image/jpeg").Return(proofURL, nil)
+	s.repo.On("Confirm", mock.Anything, id, proofURL, mock.AnythingOfType("time.Time")).
+		Return(domain.ErrInternalFailure)
+	s.storage.On("Delete", mock.Anything, mock.AnythingOfType("string")).Return(nil)
+
+	_, err := s.svc.Confirm(s.T().Context(), id, bytes.NewReader([]byte("data")), 4, "image/jpeg")
+	s.Require().ErrorIs(err, domain.ErrInternalFailure)
+}
