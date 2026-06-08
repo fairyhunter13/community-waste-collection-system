@@ -358,11 +358,11 @@ erDiagram
 
     PAYMENTS {
         UUID        id              PK
-        UUID        waste_pickup_id FK
+        UUID        waste_id        FK
         UUID        household_id    FK
         NUMERIC     amount
         ENUM        status          "pending|paid|failed"
-        TEXT        proof_url
+        TEXT        proof_file_url
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
     }
@@ -639,7 +639,7 @@ sequenceDiagram
 
     C->>H: POST /api/pickups (BR-01 pending-payment guard)
     H->>S: PickupService.Create
-    S->>R: HasPendingPaymentForHousehold; INSERT pickup
+    S->>R: HasPendingPaymentForHousehold then INSERT pickup
     R->>DB: EXISTS check + INSERT with partial-UNIQUE guard
     DB-->>R: pickup
     R-->>S: domain.WastePickup
@@ -657,8 +657,8 @@ sequenceDiagram
 
     C->>H: PUT /api/pickups/:id/complete (BR-05 atomicity)
     H->>S: PickupService.Complete (tx)
-    S->>R: BEGIN tx; UPDATE pickup WHERE status='scheduled'; INSERT payment; COMMIT
-    R->>DB: BEGIN; update; insert; COMMIT
+    S->>R: BEGIN tx, UPDATE pickup WHERE status='scheduled', INSERT payment, COMMIT
+    R->>DB: BEGIN, update, insert, COMMIT
     DB-->>R: completed + new pending payment
     R-->>S: pickup + payment
     S-->>H: success
