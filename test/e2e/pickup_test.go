@@ -3,6 +3,8 @@
 package e2e_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"time"
 )
@@ -323,8 +325,11 @@ func (s *E2ESuite) TestPickup_CreateNonExistentHousehold() {
 }
 
 func (s *E2ESuite) TestPickup_RateLimit() {
-	// Send 60 rapid pickup-create requests; CI uses RATE_LIMIT_BURST=50, so at least
-	// some requests must exceed the burst window and receive 429.
+	// Uses a dedicated X-Real-IP to isolate this test's bucket from other tests.
+	// The rate limiter is per-IP, so exhausting the bucket for "192.0.2.1" does
+	// not affect subsequent tests that run from 127.0.0.1.
+	const testIP = "192.0.2.1"
+
 	var hResp map[string]any
 	resp := s.do(http.MethodPost, "/api/households", map[string]any{
 		"owner_name": "RateLimit Owner",
@@ -335,11 +340,14 @@ func (s *E2ESuite) TestPickup_RateLimit() {
 	householdID := hResp["data"].(map[string]any)["id"].(string)
 
 	got429 := false
+	body, _ := json.Marshal(map[string]any{"household_id": householdID, "type": "organic"})
 	for i := 0; i < 60; i++ {
-		r := s.do(http.MethodPost, "/api/pickups", map[string]any{
-			"household_id": householdID,
-			"type":         "organic",
-		})
+		req, err := http.NewRequest(http.MethodPost, s.baseURL+"/api/pickups", bytes.NewReader(body))
+		s.Require().NoError(err)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Real-IP", testIP)
+		r, err := s.client.Do(req)
+		s.Require().NoError(err)
 		if r.StatusCode == http.StatusTooManyRequests {
 			got429 = true
 		}
