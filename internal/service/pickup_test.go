@@ -338,7 +338,7 @@ func newScheduledPickup(id uuid.UUID) *domain.WastePickup {
 func TestComplete_BeginTxFails(t *testing.T) {
 	db, sm, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 	sm.ExpectBegin().WillReturnError(errors.New("db unavailable"))
 
 	id := uuid.New()
@@ -355,7 +355,7 @@ func TestComplete_BeginTxFails(t *testing.T) {
 func TestComplete_UpdateStatusInTxFails(t *testing.T) {
 	db, sm, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 	sm.ExpectBegin()
 	sm.ExpectRollback()
 
@@ -375,7 +375,7 @@ func TestComplete_UpdateStatusInTxFails(t *testing.T) {
 func TestComplete_CreateWithTxFails(t *testing.T) {
 	db, sm, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 	sm.ExpectBegin()
 	sm.ExpectRollback()
 
@@ -396,7 +396,7 @@ func TestComplete_CreateWithTxFails(t *testing.T) {
 func TestComplete_CommitFails(t *testing.T) {
 	db, sm, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 	sm.ExpectBegin()
 	sm.ExpectCommit().WillReturnError(errors.New("commit failed"))
 	// After a failed Commit, database/sql marks tx.done=1 so the deferred
