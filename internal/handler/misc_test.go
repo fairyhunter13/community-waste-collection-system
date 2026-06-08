@@ -22,6 +22,8 @@ import (
 	"github.com/fairyhunter13/community-waste-collection-system/internal/mocks"
 )
 
+const sqlmockCountCol = "count"
+
 func newTestHandler(t *testing.T) (*handler.Handler, *echo.Echo) {
 	t.Helper()
 	hSvc := mocks.NewHouseholdService(t)
@@ -216,7 +218,7 @@ func TestNewValidator_DBExistsHousehold_ReturnsFalseWhenNotFound(t *testing.T) {
 	// households lookup returns 0 rows → db_exists_household fails
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM households`).
 		WithArgs(householdID).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+		WillReturnRows(sqlmock.NewRows([]string{sqlmockCountCol}).AddRow(0))
 
 	body := fmt.Sprintf(`{"household_id":%q,"waste_id":%q,"amount":"100"}`,
 		householdID, wasteID)
@@ -245,10 +247,10 @@ func TestNewValidator_DBExistsPickup_ReturnsFalseWhenNotFound(t *testing.T) {
 	// households lookup returns 1 → passes; waste_pickups lookup returns 0 → fails
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM households`).
 		WithArgs(householdID).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		WillReturnRows(sqlmock.NewRows([]string{sqlmockCountCol}).AddRow(1))
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM waste_pickups`).
 		WithArgs(wasteID).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+		WillReturnRows(sqlmock.NewRows([]string{sqlmockCountCol}).AddRow(0))
 
 	body := fmt.Sprintf(`{"household_id":%q,"waste_id":%q,"amount":"100"}`,
 		householdID, wasteID)
