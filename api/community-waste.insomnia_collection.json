@@ -143,20 +143,6 @@
       "metaSortKey": -6
     },
     {
-      "_id": "req_9554b41978964a268a43c1525b030f0f",
-      "_type": "request",
-      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
-      "name": "Delete Household",
-      "method": "DELETE",
-      "url": "{{base_url}}/api/households/{{household_id}}",
-      "headers": [],
-      "parameters": [],
-      "body": {},
-      "authentication": {},
-      "description": "",
-      "metaSortKey": -7
-    },
-    {
       "_id": "fld_d35a536caf594a16963e9a95390e9594",
       "_type": "request_group",
       "parentId": "wrk_7dd4b88e4e0543d183b1c094d2fd9102",
@@ -482,7 +468,7 @@
             "value": "",
             "type": "file",
             "disabled": false,
-            "fileName": "/path/to/receipt.jpg"
+            "fileName": "api/fixtures/receipt.jpg"
           }
         ]
       },
@@ -524,7 +510,7 @@
             "value": "",
             "type": "file",
             "disabled": false,
-            "fileName": "/path/to/receipt.jpg"
+            "fileName": "api/fixtures/receipt.jpg"
           }
         ]
       },
@@ -595,6 +581,20 @@
       "authentication": {},
       "description": "",
       "metaSortKey": -31
+    },
+    {
+      "_id": "req_9554b41978964a268a43c1525b030f0f",
+      "_type": "request",
+      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "name": "Delete Household",
+      "method": "DELETE",
+      "url": "{{base_url}}/api/households/{{household_id}}",
+      "headers": [],
+      "parameters": [],
+      "body": {},
+      "authentication": {},
+      "description": "",
+      "metaSortKey": -7
     }
   ]
 }
