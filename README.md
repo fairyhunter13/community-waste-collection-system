@@ -22,8 +22,8 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
   - BR-05 — Completing a pickup atomically auto-generates a payment record at the confirmed amount
   - BR-06 — Payment confirmation requires a multipart proof-of-payment file upload
 - **Per-IP rate limiting** on pickup creation (5 req/s, burst 10) via token bucket
-- **Full-stack observability**: structured JSON logs (slog), distributed tracing (OTel → Jaeger), 14 Prometheus metrics, 2 auto-provisioned Grafana dashboards
-- **Unit test coverage 82.7%** enforced in CI (gate ≥80%); integration tests use real PostgreSQL via testcontainers
+- **Full-stack observability**: structured JSON logs (slog), distributed tracing (OTel → Jaeger), 21 Prometheus instruments, 3 auto-provisioned Grafana dashboards
+- **Unit test coverage ≥80%** enforced in CI; integration tests use real PostgreSQL via testcontainers
 - **OpenAPI 3.0 spec** documented in `api/openapi.yaml`
 
 ---
@@ -94,10 +94,11 @@ curl http://localhost:8080/health
 | Prometheus metrics | http://localhost:2112/metrics | — |
 | pprof debug | http://localhost:6060/debug/pprof/ | — |
 
-Grafana auto-provisions two dashboards on startup:
+Grafana auto-provisions three dashboards on startup:
 
 - **Waste Collection API** — 7 rows: API traffic, business events, database performance, background worker, Go runtime, process metrics, S3 storage, and Jaeger traces
 - **Business Operations** — 4 rows: pickup funnel, payment funnel, error breakdown, S3 storage KPIs
+- **Logs & Traces** — Loki log stream with trace-ID correlation links to Jaeger
 
 ---
 
@@ -790,4 +791,4 @@ to recover.
 - **Background worker with context cancellation**: `OrganicCanceler` ticks on a configurable interval. Shutdown sends a context cancel; the worker drains its current cycle and exits within `WorkerShutdownTimeout` so `SIGTERM` never leaves the process in a half-cancelled state.
 - **Business rules in the service layer**: Handlers parse and validate input only; repositories are pure data access. All BR-01..BR-06 invariants live in `internal/service/`, enforced by partial-UNIQUE index + pending-payment guard (BR-01), DB transaction atomicity with conditional-UPDATE status guards (BR-05), and MIME allowlist + magic-byte sniff (BR-06).
 - **OpenTelemetry for vendor-neutral distributed tracing**: OTLP export to Jaeger for local dev. Every layer creates named child spans (`service.pickup.Create`, `repository.household.FindByID`, etc.) with domain attributes. `trace_id` is injected into every slog line for log/trace correlation.
-- **Prometheus RED metrics with Grafana auto-provisioning**: 14 instruments covering HTTP, DB query duration, business events, worker cycles, and S3 upload latency. Datasources and two dashboards are version-controlled under `deployments/grafana/` and provisioned automatically on `docker compose up`.
+- **Prometheus RED metrics with Grafana auto-provisioning**: 21 instruments covering HTTP, DB query duration, business events, worker cycles, and S3 upload latency. Datasources and three dashboards are version-controlled under `deployments/grafana/` and provisioned automatically on `docker compose up`.
