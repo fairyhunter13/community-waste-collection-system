@@ -117,7 +117,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"owner_name\": \"John Doe\",\n    \"address\": \"Jl. Sudirman No. 1\",\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"owner_name\": \"John Doe\",\n    \"address\": \"Jl. Sudirman No. 1\",\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -276,7 +276,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"owner_name\": \"John Doe\",\n      \"address\": \"Jl. Sudirman No. 1\",\n      \"created_at\": \"2026-06-07T10:00:00Z\",\n      \"updated_at\": \"2026-06-07T10:00:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"owner_name\": \"John Doe\",\n      \"address\": \"Jl. Sudirman No. 1\",\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
             }
           ]
         },
@@ -336,7 +336,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"owner_name\": \"John Doe\",\n    \"address\": \"Jl. Sudirman No. 1\",\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"owner_name\": \"John Doe\",\n    \"address\": \"Jl. Sudirman No. 1\",\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -534,7 +534,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"organic\",\n    \"status\": \"pending\",\n    \"pickup_date\": null,\n    \"safety_check\": false,\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"organic\",\n    \"status\": \"pending\",\n    \"pickup_date\": null,\n    \"safety_check\": false,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -621,7 +621,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"electronic\",\n    \"status\": \"pending\",\n    \"pickup_date\": null,\n    \"safety_check\": true,\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"electronic\",\n    \"status\": \"pending\",\n    \"pickup_date\": null,\n    \"safety_check\": true,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -859,7 +859,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"type\": \"organic\",\n      \"status\": \"pending\",\n      \"pickup_date\": null,\n      \"safety_check\": false,\n      \"created_at\": \"2026-06-07T10:00:00Z\",\n      \"updated_at\": \"2026-06-07T10:00:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"type\": \"organic\",\n      \"status\": \"pending\",\n      \"pickup_date\": null,\n      \"safety_check\": false,\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
             }
           ]
         },
@@ -935,7 +935,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"type\": \"organic\",\n      \"status\": \"pending\",\n      \"pickup_date\": null,\n      \"safety_check\": false,\n      \"created_at\": \"2026-06-07T10:00:00Z\",\n      \"updated_at\": \"2026-06-07T10:00:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"type\": \"organic\",\n      \"status\": \"pending\",\n      \"pickup_date\": null,\n      \"safety_check\": false,\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
             }
           ]
         },
@@ -1015,7 +1015,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"organic\",\n    \"status\": \"scheduled\",\n    \"pickup_date\": \"2026-06-09T10:00:00Z\",\n    \"safety_check\": false,\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"organic\",\n    \"status\": \"scheduled\",\n    \"pickup_date\": \"2026-01-22T11:15:00Z\",\n    \"safety_check\": false,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -1150,7 +1150,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"organic\",\n    \"status\": \"completed\",\n    \"pickup_date\": \"2026-06-09T10:00:00Z\",\n    \"safety_check\": false,\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"organic\",\n    \"status\": \"completed\",\n    \"pickup_date\": \"2026-01-22T11:15:00Z\",\n    \"safety_check\": false,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -1210,7 +1210,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"organic\",\n    \"status\": \"canceled\",\n    \"pickup_date\": null,\n    \"safety_check\": false,\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"type\": \"organic\",\n    \"status\": \"canceled\",\n    \"pickup_date\": null,\n    \"safety_check\": false,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -1361,7 +1361,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"amount\": \"50000.00\",\n    \"payment_date\": null,\n    \"status\": \"pending\",\n    \"proof_file_url\": null,\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"amount\": \"50000.00\",\n    \"payment_date\": null,\n    \"status\": \"pending\",\n    \"proof_file_url\": null,\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -1445,7 +1445,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n      \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"amount\": \"50000.00\",\n      \"payment_date\": null,\n      \"status\": \"pending\",\n      \"proof_file_url\": null,\n      \"created_at\": \"2026-06-07T10:00:00Z\",\n      \"updated_at\": \"2026-06-07T10:00:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n      \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"amount\": \"50000.00\",\n      \"payment_date\": null,\n      \"status\": \"pending\",\n      \"proof_file_url\": null,\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
             }
           ]
         },
@@ -1521,7 +1521,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n      \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"amount\": \"50000.00\",\n      \"payment_date\": null,\n      \"status\": \"pending\",\n      \"proof_file_url\": null,\n      \"created_at\": \"2026-06-07T10:00:00Z\",\n      \"updated_at\": \"2026-06-07T10:00:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n      \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"amount\": \"50000.00\",\n      \"payment_date\": null,\n      \"status\": \"pending\",\n      \"proof_file_url\": null,\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"per_page\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
             }
           ]
         },
@@ -1603,7 +1603,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"amount\": \"50000.00\",\n    \"payment_date\": \"2026-06-07T10:00:00Z\",\n    \"status\": \"paid\",\n    \"proof_file_url\": \"http://minio:9000/waste-proofs/c3d4e5f6-a7b8-9012-cdef-123456789012/proof_abc123.jpg\",\n    \"created_at\": \"2026-06-07T10:00:00Z\",\n    \"updated_at\": \"2026-06-07T10:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n    \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"amount\": \"50000.00\",\n    \"payment_date\": \"2025-11-15T09:32:00Z\",\n    \"status\": \"paid\",\n    \"proof_file_url\": \"http://minio:9000/waste-proofs/c3d4e5f6-a7b8-9012-cdef-123456789012/proof_abc123.jpg\",\n    \"created_at\": \"2025-11-15T09:32:00Z\",\n    \"updated_at\": \"2025-11-15T09:32:00Z\"\n  }\n}"
             }
           ]
         },
@@ -1926,7 +1926,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"household\": {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"owner_name\": \"John Doe\",\n      \"address\": \"Jl. Sudirman No. 1\",\n      \"created_at\": \"2026-06-07T10:00:00Z\",\n      \"updated_at\": \"2026-06-07T10:00:00Z\"\n    },\n    \"pickups\": [\n      {\n        \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n        \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n        \"type\": \"organic\",\n        \"status\": \"completed\",\n        \"pickup_date\": \"2026-06-09T10:00:00Z\",\n        \"safety_check\": false,\n        \"created_at\": \"2026-06-07T10:00:00Z\",\n        \"updated_at\": \"2026-06-07T10:00:00Z\"\n      }\n    ],\n    \"payments\": [\n      {\n        \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n        \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n        \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n        \"amount\": \"50000.00\",\n        \"payment_date\": \"2026-06-07T10:00:00Z\",\n        \"status\": \"paid\",\n        \"proof_file_url\": \"http://minio:9000/waste-proofs/c3d4e5f6-a7b8-9012-cdef-123456789012/proof_abc123.jpg\",\n        \"created_at\": \"2026-06-07T10:00:00Z\",\n        \"updated_at\": \"2026-06-07T10:00:00Z\"\n      }\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"household\": {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"owner_name\": \"John Doe\",\n      \"address\": \"Jl. Sudirman No. 1\",\n      \"created_at\": \"2025-11-15T09:32:00Z\",\n      \"updated_at\": \"2025-11-15T09:32:00Z\"\n    },\n    \"pickups\": [\n      {\n        \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n        \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n        \"type\": \"organic\",\n        \"status\": \"completed\",\n        \"pickup_date\": \"2026-01-22T11:15:00Z\",\n        \"safety_check\": false,\n        \"created_at\": \"2025-11-15T09:32:00Z\",\n        \"updated_at\": \"2025-11-15T09:32:00Z\"\n      }\n    ],\n    \"payments\": [\n      {\n        \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n        \"household_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n        \"waste_id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n        \"amount\": \"50000.00\",\n        \"payment_date\": \"2025-11-15T09:32:00Z\",\n        \"status\": \"paid\",\n        \"proof_file_url\": \"http://minio:9000/waste-proofs/c3d4e5f6-a7b8-9012-cdef-123456789012/proof_abc123.jpg\",\n        \"created_at\": \"2025-11-15T09:32:00Z\",\n        \"updated_at\": \"2025-11-15T09:32:00Z\"\n      }\n    ]\n  }\n}"
             }
           ]
         },

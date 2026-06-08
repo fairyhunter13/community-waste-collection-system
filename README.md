@@ -13,7 +13,7 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
 
 ## Key Features
 
-- **16 REST endpoints** across households, pickups, payments, and reports
+- **15 product REST endpoints** across households, pickups, payments, and reports plus 3 operational endpoints (`/health`, `/readyz`, `/metrics`)
 - **6 business rules** enforced in the service layer:
   - BR-01 — A household with any pending payment cannot create a new pickup
   - BR-02 — Only pending pickups can be scheduled; only scheduled can be completed or cancelled
@@ -205,7 +205,7 @@ PK_ID=$(echo $PK | jq -r '.data.id')
 ```bash
 curl -s -X PUT "http://localhost:8080/api/pickups/$PK_ID/schedule" \
   -H 'Content-Type: application/json' \
-  -d '{"pickup_date":"2026-06-15T09:00:00Z"}' | jq .
+  -d '{"pickup_date":"2026-02-14T09:00:00Z"}' | jq .
 ```
 
 **4. Complete the pickup** (auto-creates a payment record)
@@ -633,10 +633,10 @@ sequenceDiagram
     S-->>H: success
     H-->>C: 201 + envelope
 
-    C->>H: POST /api/pickups (BR-01 advisory lock)
+    C->>H: POST /api/pickups (BR-01 pending-payment guard)
     H->>S: PickupService.Create
-    S->>R: HasPendingPaymentForHousehold + INSERT pickup
-    R->>DB: pg_advisory_xact_lock + check + insert
+    S->>R: HasPendingPaymentForHousehold; INSERT pickup
+    R->>DB: EXISTS check + INSERT with partial-UNIQUE guard
     DB-->>R: pickup
     R-->>S: domain.WastePickup
     S-->>H: success
@@ -653,8 +653,8 @@ sequenceDiagram
 
     C->>H: PUT /api/pickups/:id/complete (BR-05 atomicity)
     H->>S: PickupService.Complete (tx)
-    S->>R: SELECT … FOR UPDATE + UPDATE pickup + INSERT payment
-    R->>DB: BEGIN; lock; update; insert; COMMIT
+    S->>R: BEGIN tx; UPDATE pickup WHERE status='scheduled'; INSERT payment; COMMIT
+    R->>DB: BEGIN; update; insert; COMMIT
     DB-->>R: completed + new pending payment
     R-->>S: pickup + payment
     S-->>H: success
@@ -685,7 +685,7 @@ and the full trace in Jaeger:
 
 ```json
 {
-  "time": "2026-06-07T08:14:21.317Z",
+  "time": "2025-11-15T09:32:11.429Z",
   "level": "INFO",
   "msg": "request",
   "method": "POST",
@@ -768,38 +768,13 @@ to recover.
 
 ---
 
-## Spec Compliance
+## Known Limitations
 
-| Category | Count | Status |
-|----------|-------|--------|
-| Endpoints (Household, Pickup, Payment, Reporting) | 16/16 | ✅ All implemented |
-| Business rules (BR-01 .. BR-06) | 6/6 | ✅ All enforced |
-| Technical requirements (TR-1 .. TR-6) | 6/6 | ✅ All met |
-| Deliverables | 5/5 | ✅ All present |
-
-Per-requirement traceability (file paths + test names) is tracked in `plans/architecture.md`.
-
-### Business rules at a glance
-
-| # | Rule | Enforcement |
-|---|------|-------------|
-| BR-01 | No new pickup if household has a pending payment | `internal/service/pickup.go` Create — advisory lock + partial UNIQUE index |
-| BR-02 | Schedule only if status is `pending` | Conditional `UPDATE … WHERE status='pending'` → 409 on stale state |
-| BR-03 | Electronic pickup: `safety_check` must be `true` before scheduling | Service + validator; 422 otherwise |
-| BR-04 | Organic pickups auto-canceled after 3 days via goroutine | `internal/worker/organic_canceler.go` — ticks every minute, cleans up gracefully on shutdown |
-| BR-05 | Completing a pickup auto-creates a payment (50 000 or 100 000) | `SELECT FOR UPDATE` + atomic tx in `internal/service/pickup.go` Complete |
-| BR-06 | Payment confirmation requires S3 proof-of-payment file upload | MIME allowlist + magic-byte sniff + MinIO upload + URL saved to DB |
-
-### Technical requirements at a glance
-
-| # | Requirement | Where |
-|---|-------------|-------|
-| TR-1 | Dependency injection | Constructor wiring in `cmd/api/main.go`; interfaces in `internal/domain/` |
-| TR-2 | Graceful shutdown | Signal handler + `wg.Wait()` in `cmd/api/main.go`; worker drains before exit |
-| TR-3 | Rate limiting on pickup creation | Per-IP token bucket on `POST /api/pickups`; `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST` env vars |
-| TR-4 | Docker + single command | `make docker-up` boots 8 services; `docker compose up` equivalently |
-| TR-5 | Consistent API responses | Envelope `{success, data?, error?, meta?}` on every endpoint; audited in `error_envelope_test.go` |
-| TR-6 | Input validation | `validator/v10` + custom `db_exists_household` / `db_exists_pickup` tags; tested per-field |
+- **DB and MinIO credentials default to development values.** Override `DATABASE_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` via environment variables or a secrets manager before deploying to production.
+- **Jaeger uses in-memory trace storage in docker-compose.** Spans are lost on container restart — intentional for local development. Use a persistent backend (e.g. Elasticsearch) in production.
+- **`DELETE /api/households` performs a hard cascade delete.** The household and all linked pickups/payments are permanently removed. Audit trail preservation is out of scope for v1.
+- **`WORKER_CANCEL_INTERVAL` adds up to one tick of drift to the 3-day organic-cancellation cutoff.** At the default 1-hour interval the worst case is ~73 hours. Reduce `WORKER_CANCEL_INTERVAL` for tighter SLAs.
+- **pprof debug server binds to `127.0.0.1` only.** Not reachable from outside the container; no host port is mapped.
 
 ---
 
@@ -810,6 +785,6 @@ Per-requirement traceability (file paths + test names) is tracked in `plans/arch
 - **`shopspring/decimal` for monetary amounts**: Eliminates float rounding errors. Amounts stored as `NUMERIC(12,2)` in PostgreSQL and marshalled as quoted JSON strings (`"50000.00"`).
 - **Per-IP token bucket rate limiting**: `golang.org/x/time/rate` in a `sync.Map` keyed on `X-Real-IP`/`RemoteAddr`. Zero extra infrastructure; configurable via `RATE_LIMIT_RPS` and `RATE_LIMIT_BURST` env vars.
 - **Background worker with context cancellation**: `OrganicCanceler` ticks on a configurable interval. Shutdown sends a context cancel; the worker drains its current cycle and exits within `WorkerShutdownTimeout` so `SIGTERM` never leaves the process in a half-cancelled state.
-- **Business rules in the service layer**: Handlers parse and validate input only; repositories are pure data access. All BR-01..BR-06 invariants live in `internal/service/`, including advisory-lock placement (BR-01), `SELECT … FOR UPDATE` atomicity (BR-05), MIME allowlist (BR-06).
+- **Business rules in the service layer**: Handlers parse and validate input only; repositories are pure data access. All BR-01..BR-06 invariants live in `internal/service/`, enforced by partial-UNIQUE index + pending-payment guard (BR-01), DB transaction atomicity with conditional-UPDATE status guards (BR-05), and MIME allowlist + magic-byte sniff (BR-06).
 - **OpenTelemetry for vendor-neutral distributed tracing**: OTLP export to Jaeger for local dev. Every layer creates named child spans (`service.pickup.Create`, `repository.household.FindByID`, etc.) with domain attributes. `trace_id` is injected into every slog line for log/trace correlation.
 - **Prometheus RED metrics with Grafana auto-provisioning**: 14 instruments covering HTTP, DB query duration, business events, worker cycles, and S3 upload latency. Datasources and two dashboards are version-controlled under `deployments/grafana/` and provisioned automatically on `docker compose up`.
