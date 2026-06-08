@@ -234,7 +234,7 @@ func (s *E2ESuite) TestPickups_ConcurrentCreate_SameHousehold_AdvisoryLockSerial
 			<-startGate
 			resp := s.do(http.MethodPost, "/api/pickups", map[string]any{
 				"household_id": householdID,
-				"type":         "general",
+				"type":         "paper",
 			})
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusCreated {

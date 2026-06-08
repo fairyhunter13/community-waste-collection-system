@@ -40,13 +40,14 @@ func (s *PaymentServiceSuite) TestCreate_Success() {
 	s.pickupRepo.On("FindByID", mock.Anything, wid).Return(&domain.WastePickup{
 		ID:          wid,
 		HouseholdID: hid,
+		Type:        domain.WasteTypePlastic, // canonical amount: 50000.00
 	}, nil)
 	s.repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Payment")).Return(nil)
 
 	req := domain.CreatePaymentRequest{
 		HouseholdID: hid,
 		WasteID:     wid,
-		Amount:      decimal.RequireFromString("50000.00"),
+		Amount:      decimal.RequireFromString("1.00"), // ignored; server derives canonical amount
 	}
 	got, err := s.svc.Create(s.T().Context(), req)
 	s.Require().NoError(err)

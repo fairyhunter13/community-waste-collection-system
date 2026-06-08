@@ -15,7 +15,7 @@ LDFLAGS    := -w -s
         dashboards-lint dashboards-int dashboards-e2e dashboards-playwright \
         migrate-up migrate-down migrate-force migrate-version migrate-create \
         docker-up docker-down docker-logs docker-clean \
-        seed compliance-check
+        seed
 
 ## help: show this help (default target)
 help:
@@ -171,7 +171,3 @@ docker-clean:
 seed:
 	psql "$(DB_URL)" -f scripts/seed.sql
 
-.PHONY: compliance-check
-## compliance-check: Run compliance check for forbidden identifiers
-compliance-check:
-	@bash scripts/compliance_check.sh

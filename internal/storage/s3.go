@@ -25,6 +25,7 @@ import (
 // s3API is the subset of aws-sdk-go-v2 s3.Client used by S3Client, enabling test injection.
 type s3API interface {
 	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error)
 	CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error)
 	HeadBucket(ctx context.Context, params *s3.HeadBucketInput, optFns ...func(*s3.Options)) (*s3.HeadBucketOutput, error)
 }
@@ -123,4 +124,40 @@ func (c *S3Client) Upload(ctx context.Context, key string, r io.Reader, size int
 	}
 	observability.S3UploadBytesTotal.Add(float64(size))
 	return fmt.Sprintf("%s/%s/%s", c.endpoint, c.bucket, key), nil
+}
+
+// Delete removes an object from storage. Errors are logged but not considered fatal
+// for callers that use this as a best-effort cleanup step.
+func (c *S3Client) Delete(ctx context.Context, key string) error {
+	ctx, span := observability.Tracer().Start(ctx, "storage.s3.Delete")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("s3.bucket", c.bucket),
+		attribute.String("s3.key", key),
+	)
+
+	_, err := c.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		observability.FromContext(ctx).WarnContext(ctx, "S3 delete failed",
+			slog.String("op", "S3.Delete"),
+			slog.String("key", key),
+			slog.Any("err", err),
+		)
+		return fmt.Errorf("s3 delete %s: %w", key, err)
+	}
+	return nil
+}
+
+// Ping checks that the configured bucket is reachable. Used by the readiness probe.
+func (c *S3Client) Ping(ctx context.Context) error {
+	_, err := c.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(c.bucket)})
+	if err != nil {
+		return fmt.Errorf("s3 ping bucket %s: %w", c.bucket, err)
+	}
+	return nil
 }

@@ -324,7 +324,8 @@ func (r *pickupRepo) BulkCancel(ctx context.Context, ids []uuid.UUID) error {
 		strs[i] = id.String()
 	}
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE waste_pickups SET status = 'canceled', updated_at = NOW() WHERE id = ANY($1::uuid[])`,
+		`UPDATE waste_pickups SET status = 'canceled', updated_at = NOW()
+		  WHERE id = ANY($1::uuid[]) AND status IN ('pending', 'scheduled')`,
 		pq.Array(strs),
 	)
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "UPDATE").Observe(time.Since(start).Seconds())

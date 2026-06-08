@@ -22,6 +22,10 @@ func (m *mockS3) PutObject(_ context.Context, _ *s3.PutObjectInput, _ ...func(*s
 	return &s3.PutObjectOutput{}, m.err
 }
 
+func (m *mockS3) DeleteObject(_ context.Context, _ *s3.DeleteObjectInput, _ ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
+	return &s3.DeleteObjectOutput{}, m.err
+}
+
 func (m *mockS3) CreateBucket(_ context.Context, _ *s3.CreateBucketInput, _ ...func(*s3.Options)) (*s3.CreateBucketOutput, error) {
 	return &s3.CreateBucketOutput{}, m.err
 }

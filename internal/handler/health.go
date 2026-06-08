@@ -19,23 +19,40 @@ func (h *Handler) HealthCheck(c echo.Context) error {
 }
 
 // ReadyCheck (readiness) — returns 200 only when the dependencies needed to
-// serve real traffic are available. Currently: DB reachable via PingContext.
-// Used by Kubernetes / load balancers to gate routing.
+// serve real traffic are available: DB reachable and object storage bucket
+// accessible. Used by Kubernetes / load balancers to gate routing.
 func (h *Handler) ReadyCheck(c echo.Context) error {
+	checks := map[string]string{}
+	ready := true
+
 	if h.db == nil {
-		return c.JSON(http.StatusServiceUnavailable, map[string]any{
-			healthFieldStatus: "unready",
-			healthFieldChecks: map[string]string{"db": "not_configured"},
-		})
+		checks["db"] = "not_configured"
+		ready = false
+	} else if err := h.db.PingContext(c.Request().Context()); err != nil {
+		checks["db"] = "unreachable"
+		ready = false
+	} else {
+		checks["db"] = "ok"
 	}
-	if err := h.db.PingContext(c.Request().Context()); err != nil {
+
+	if h.storage == nil {
+		checks["storage"] = "not_configured"
+		ready = false
+	} else if err := h.storage.Ping(c.Request().Context()); err != nil {
+		checks["storage"] = "unreachable"
+		ready = false
+	} else {
+		checks["storage"] = "ok"
+	}
+
+	if !ready {
 		return c.JSON(http.StatusServiceUnavailable, map[string]any{
 			healthFieldStatus: "unready",
-			healthFieldChecks: map[string]string{"db": "unreachable"},
+			healthFieldChecks: checks,
 		})
 	}
 	return c.JSON(http.StatusOK, map[string]any{
 		healthFieldStatus: "ready",
-		healthFieldChecks: map[string]string{"db": "ok"},
+		healthFieldChecks: checks,
 	})
 }

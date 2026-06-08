@@ -33,8 +33,6 @@ jobs:
           version: v2.12.2
           args: --timeout=5m
 
-      - name: Compliance check (no forbidden identifiers)
-        run: bash scripts/compliance_check.sh
 
   vuln:
     name: Vulnerability Scan

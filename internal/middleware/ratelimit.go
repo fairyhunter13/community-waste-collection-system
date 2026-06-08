@@ -4,6 +4,7 @@ package middleware
 import (
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -15,8 +16,16 @@ import (
 )
 
 type ipLimiter struct {
-	limiter  *rate.Limiter
-	lastSeen time.Time
+	limiter      *rate.Limiter
+	lastSeenNano int64 // atomic; Unix nanoseconds
+}
+
+func (l *ipLimiter) touchAndGetNano(now int64) {
+	atomic.StoreInt64(&l.lastSeenNano, now)
+}
+
+func (l *ipLimiter) lastSeenNanoLoad() int64 {
+	return atomic.LoadInt64(&l.lastSeenNano)
 }
 
 var (
@@ -37,12 +46,13 @@ func RateLimiter(cfg *config.Config) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			ip := c.RealIP()
 			now := time.Now()
+			nowNano := now.UnixNano()
 			v, loaded := limiters.LoadOrStore(ip, &ipLimiter{
-				limiter:  rate.NewLimiter(rate.Limit(cfg.RateLimitRPS), cfg.RateLimitBurst),
-				lastSeen: now,
+				limiter:      rate.NewLimiter(rate.Limit(cfg.RateLimitRPS), cfg.RateLimitBurst),
+				lastSeenNano: nowNano,
 			})
 			l := v.(*ipLimiter)
-			l.lastSeen = now
+			l.touchAndGetNano(nowNano)
 			if !loaded {
 				observability.RateLimitActiveClients.Inc()
 			}
@@ -90,11 +100,11 @@ func evictIdleClients() {
 	ticker := time.NewTicker(evictInterval)
 	defer ticker.Stop()
 	for range ticker.C {
-		cutoff := time.Now().Add(-evictThreshold)
+		cutoffNano := time.Now().Add(-evictThreshold).UnixNano()
 		removed := 0
 		limiters.Range(func(k, v any) bool {
 			l := v.(*ipLimiter)
-			if l.lastSeen.Before(cutoff) {
+			if l.lastSeenNanoLoad() < cutoffNano {
 				limiters.Delete(k)
 				removed++
 			}

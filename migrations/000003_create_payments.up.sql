@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS payments (
     updated_at     TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_payments_household_id ON payments(household_id);
-CREATE INDEX idx_payments_status       ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_household_id ON payments(household_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status       ON payments(status);
 
 -- Partial index; only paid payments have a payment_date
-CREATE INDEX idx_payments_payment_date ON payments(payment_date)
+CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date)
     WHERE payment_date IS NOT NULL;

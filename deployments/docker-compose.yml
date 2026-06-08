@@ -6,7 +6,6 @@ services:
       dockerfile: build/Dockerfile
     ports:
       - "8080:8080"
-      - "6060:6060"
       - "2112:2112"
     env_file: ../.env
     environment:

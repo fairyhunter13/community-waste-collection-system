@@ -37,7 +37,7 @@ func (s *PickupHandlerSuite) SetupTest() {
 	s.pSvc = mocks.NewPickupService(s.T())
 	s.paySvc = mocks.NewPaymentService(s.T())
 	s.rptSvc = mocks.NewReportService(s.T())
-	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load(), nil)
+	s.h = handler.New(s.hSvc, s.pSvc, s.paySvc, s.rptSvc, config.Load(), nil, nil)
 	s.h.RegisterRoutes(s.echo)
 }
 

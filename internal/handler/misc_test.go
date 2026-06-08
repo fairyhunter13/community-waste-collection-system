@@ -23,7 +23,7 @@ func newTestHandler(t *testing.T) (*handler.Handler, *echo.Echo) {
 	pSvc := mocks.NewPickupService(t)
 	paySvc := mocks.NewPaymentService(t)
 	rptSvc := mocks.NewReportService(t)
-	h := handler.New(hSvc, pSvc, paySvc, rptSvc, config.Load(), nil)
+	h := handler.New(hSvc, pSvc, paySvc, rptSvc, config.Load(), nil, nil)
 	e := echo.New()
 	h.RegisterRoutes(e)
 	return h, e
@@ -65,7 +65,7 @@ func TestReadyCheck_ReturnsUnreadyWhenDBPingFails(t *testing.T) {
 	pSvc := mocks.NewPickupService(t)
 	paySvc := mocks.NewPaymentService(t)
 	rptSvc := mocks.NewReportService(t)
-	h := handler.New(hSvc, pSvc, paySvc, rptSvc, config.Load(), db)
+	h := handler.New(hSvc, pSvc, paySvc, rptSvc, config.Load(), db, nil)
 	e := echo.New()
 	h.RegisterRoutes(e)
 
