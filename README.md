@@ -347,7 +347,7 @@ erDiagram
     WASTE_PICKUPS {
         UUID        id              PK
         UUID        household_id    FK
-        ENUM        type            "organic|non-organic|hazardous|electronic"
+        ENUM        type            "organic|plastic|paper|electronic"
         ENUM        status          "pending|scheduled|completed|canceled"
         TIMESTAMPTZ pickup_date
         BOOL        safety_check

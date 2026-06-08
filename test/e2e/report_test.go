@@ -49,6 +49,11 @@ func (s *E2ESuite) TestHouseholdHistory_200() {
 }
 
 func (s *E2ESuite) TestWasteSummary_WithData() {
+	// Wait for the rate-limiter token bucket to recover after the burst-flood
+	// in TestRateLimit_429EnvelopeWithMeta (which runs immediately before this
+	// test alphabetically). At 50 RPS, 300 ms restores ~15 tokens.
+	time.Sleep(300 * time.Millisecond)
+
 	// Create two organic and one plastic pickup so aggregation can be verified.
 	var hResp map[string]any
 	resp := s.do(http.MethodPost, "/api/households", map[string]any{
