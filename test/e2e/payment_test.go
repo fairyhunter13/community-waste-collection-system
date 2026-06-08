@@ -617,3 +617,58 @@ func (s *E2ESuite) TestConfirmPayment_MissingProofPart_400() {
 	defer confirmResp.Body.Close()
 	s.Equal(http.StatusBadRequest, confirmResp.StatusCode)
 }
+
+// TestPayment_Confirm_ProofFileURLIsValidHTTP verifies that after a successful
+// payment confirmation the returned proof_file_url is an absolute HTTP(S) URL
+// pointing at the configured S3 endpoint (BR-06 storage proof).
+func (s *E2ESuite) TestPayment_Confirm_ProofFileURLIsValidHTTP() {
+	var hResp, pResp map[string]any
+	resp := s.do(http.MethodPost, "/api/households", map[string]any{
+		"owner_name": "Proof URL Format Owner",
+		"address":    "Jl. Proof URL No. 1",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &hResp)
+	householdID := hResp["data"].(map[string]any)["id"].(string)
+	defer s.do(http.MethodDelete, pathf("/api/households/%s", householdID), nil)
+
+	resp = s.do(http.MethodPost, "/api/pickups", map[string]any{"household_id": householdID, "type": "organic"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.decode(resp, &pResp)
+	pickupID := pResp["data"].(map[string]any)["id"].(string)
+
+	s.do(http.MethodPut, pathf("/api/pickups/%s/schedule", pickupID), map[string]any{
+		"pickup_date": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	s.do(http.MethodPut, pathf("/api/pickups/%s/complete", pickupID), nil)
+
+	var listResp map[string]any
+	r := s.do(http.MethodGet, fmt.Sprintf("/api/payments?household_id=%s", householdID), nil)
+	s.Require().Equal(http.StatusOK, r.StatusCode)
+	s.decode(r, &listResp)
+	payments := listResp["data"].([]any)
+	s.Require().NotEmpty(payments)
+	paymentID := payments[0].(map[string]any)["id"].(string)
+
+	body, contentType, err := jpegProofBody()
+	s.Require().NoError(err)
+	req, err := http.NewRequest(http.MethodPut, s.baseURL+pathf("/api/payments/%s/confirm", paymentID), body)
+	s.Require().NoError(err)
+	req.Header.Set("Content-Type", contentType)
+	confirmResp, err := s.client.Do(req)
+	s.Require().NoError(err)
+	defer confirmResp.Body.Close()
+	s.Require().Equal(http.StatusOK, confirmResp.StatusCode)
+
+	var confirmBody map[string]any
+	s.decode(confirmResp, &confirmBody)
+	data := confirmBody["data"].(map[string]any)
+	s.Equal("paid", data["status"])
+
+	proofURL, ok := data["proof_file_url"].(string)
+	s.Require().True(ok, "proof_file_url must be a string")
+	s.Require().NotEmpty(proofURL, "proof_file_url must be non-empty after confirm")
+	isHTTP := len(proofURL) >= 7 && proofURL[:7] == "http://"
+	isHTTPS := len(proofURL) >= 8 && proofURL[:8] == "https://"
+	s.True(isHTTP || isHTTPS, "proof_file_url must be an absolute HTTP(S) URL, got: %s", proofURL)
+}
