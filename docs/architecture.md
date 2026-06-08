@@ -51,8 +51,8 @@ Client → Echo middleware stack
 
 Three signal types, all correlated via `trace_id`:
 
-- **Metrics** — 14 Prometheus instruments registered at package init in
-  `internal/observability/metrics.go`. Scraped at `:2112/metrics`. Two
+- **Metrics** — 21 Prometheus instruments registered at package init in
+  `internal/observability/metrics.go`. Scraped at `:2112/metrics`. Three
   Grafana dashboards auto-provisioned under `deployments/grafana/`.
 - **Logs** — `log/slog` JSON to stdout. Every line carries `trace_id`,
   `span_id`, `request_id`, `op`. Promtail tails container stdout → Loki.
@@ -122,3 +122,83 @@ One row per product endpoint — handler, service, repository, and primary test 
 | Organic auto-cancellation after 3 days (BR-04) | `worker/organic_canceler.go` ticks on `WORKER_CANCEL_INTERVAL` | `e2e/pickup_test.go` | — (background) |
 | Atomic pickup completion + payment creation (BR-05) | `service/pickup.go:Complete` DB transaction: UPDATE + INSERT | `service/pickup_test.go`, `e2e/concurrency_test.go` | 409 |
 | Proof-file required for payment confirmation (BR-06) | `handler/payment.go` MIME allowlist + magic-byte sniff; `service/payment.go:Confirm` nil-reader guard | `handler/payment_test.go`, `e2e/payment_test.go` | 400 |
+
+## Visual Reference
+
+### Layered Architecture
+
+Dependencies flow strictly inward. Each layer is testable in isolation
+via the generated mocks in `internal/mocks/`.
+
+```mermaid
+graph TD
+    Client --> Middleware
+    Middleware --> Handler
+    Handler --> Service
+    Service --> Repository
+    Service --> Storage
+    Repository --> PostgreSQL
+    Storage --> MinIO
+
+    subgraph Middleware
+        RateLimit["Rate Limiter (POST /pickups only)"]
+        Validator["Input Validator (validator.v10)"]
+        Tracer["OTel Trace Middleware"]
+        RequestID["Request-ID Injector"]
+    end
+
+    subgraph Observability
+        Metrics["Prometheus /metrics (port 2112)"]
+        Logs["slog JSON stdout"]
+        Traces["OTel OTLP to Jaeger"]
+    end
+
+    Service --> Observability
+    Repository --> Observability
+
+    Worker["BR-04 Worker (organic auto-cancel)"] --> Repository
+```
+
+### Module Dependency Graph
+
+`internal/domain` defines interfaces and entities. All other packages
+depend on it — nothing depends on them back.
+
+```mermaid
+graph LR
+    cmd["cmd/api"] --> handler["internal/handler"]
+    cmd --> worker["internal/worker"]
+    handler --> service["internal/service"]
+    handler --> domain["internal/domain"]
+    service --> domain
+    service --> storage["internal/storage"]
+    service --> repository["internal/repository"]
+    repository --> domain
+    worker --> repository
+    observability["internal/observability"] --> domain
+    handler --> observability
+    service --> observability
+    repository --> observability
+```
+
+### Dependency-Injection Wiring
+
+Constructor injection wires real implementations at startup. Tests swap
+in the mocks from `internal/mocks/` at the same seams.
+
+```mermaid
+graph TD
+    main["cmd/api/main.go"] -->|NewPickupRepository| PR["PickupRepository (sqlx)"]
+    main -->|NewPaymentRepository| PAR["PaymentRepository (sqlx)"]
+    main -->|NewHouseholdRepository| HR["HouseholdRepository (sqlx)"]
+    main -->|NewStorageClient| SC["StorageClient (MinIO)"]
+    main -->|NewPickupService(PR, PAR, db)| PS["PickupService"]
+    main -->|NewPaymentService(PAR, SC)| PAS["PaymentService"]
+    main -->|NewHouseholdService(HR)| HS["HouseholdService"]
+    main -->|NewHandler(PS, PAS, HS, ...)| H["Echo Handler"]
+
+    TestPickupService["test: pickup_test.go"] -->|mocks.NewPickupRepository| MockPR["mock PickupRepository"]
+    TestPickupService -->|mocks.NewPaymentRepository| MockPAR["mock PaymentRepository"]
+    TestPickupService -->|sqlmock DB| MockDB["mock *sqlx.DB"]
+    TestPickupService -->|NewPickupService(MockPR, MockPAR, MockDB)| PS
+```

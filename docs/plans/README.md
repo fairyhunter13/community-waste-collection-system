@@ -1,13 +1,14 @@
 # Engineering Plans
 
-This directory holds product-engineering records for the Community Waste
-Collection API.
+Architecture overview now lives at [`../architecture.md`](../architecture.md).
+The phase records below are the historical engineering log for each
+development phase.
 
 ## Index
 
 | File | Contents |
 |------|----------|
-| [architecture.md](architecture.md) | Cross-cutting reference: layer responsibilities, business rule enforcement, DB schema, observability, graceful shutdown |
+| [../architecture.md](../architecture.md) | Cross-cutting reference: layer responsibilities, business rule enforcement, DB schema, observability, graceful shutdown |
 | [phase-1-foundations.md](phase-1-foundations.md) | DI wiring, Echo setup, config, graceful shutdown, sentinel errors |
 | [phase-2-data-and-migrations.md](phase-2-data-and-migrations.md) | Database schema, migrations, repository layer, sqlx patterns |
 | [phase-3-business-rules.md](phase-3-business-rules.md) | BR-01..BR-06 service-layer enforcement |
