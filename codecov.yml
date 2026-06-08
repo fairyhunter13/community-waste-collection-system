@@ -21,8 +21,6 @@ comment:
 
 ignore:
   - "internal/mocks/**"
-  - "internal/observability/**"
-  - "internal/apispec/**"
   - "cmd/**"
   - "test/**"
   - "scripts/**"
