@@ -13,10 +13,10 @@ each transition.
 ```mermaid
 stateDiagram-v2
     [*] --> pending : POST /api/pickups
-    pending --> scheduled : PUT /pickups/:id/schedule\n[BR-02: only from pending]\n[BR-03: electronic needs safety_check]
+    pending --> scheduled : PUT /pickups/:id/schedule
     pending --> canceled : PUT /pickups/:id/cancel
-    pending --> canceled : BR-04 worker auto-cancel\n(organic, older than cutoff days)
-    scheduled --> completed : PUT /pickups/:id/complete\n[BR-05: triggers auto-payment]
+    pending --> canceled : BR-04 worker auto-cancel
+    scheduled --> completed : PUT /pickups/:id/complete
     scheduled --> canceled : PUT /pickups/:id/cancel
     completed --> [*]
     canceled --> [*]
@@ -36,7 +36,7 @@ confirmed by uploading a proof file (BR-06).
 ```mermaid
 stateDiagram-v2
     [*] --> pending : auto-created on pickup complete (BR-05)
-    pending --> paid : PUT /payments/:id/confirm\n[BR-06: requires proof file upload to S3]
+    pending --> paid : PUT /payments/:id/confirm
     pending --> failed : admin intervention (future path)
     paid --> [*]
     failed --> [*]
@@ -57,11 +57,11 @@ exists for it. The gate is enforced at both the service layer and the DB.
 ```mermaid
 flowchart TD
     A[POST /api/pickups] --> B{HasPendingPaymentForHousehold?}
-    B -- Yes --> C[409 Conflict\nBR-01 violation]
-    B -- No --> D{acquire pg_advisory_xact_lock\nhousehold_id hash}
-    D --> E{re-check pending payment\ninside transaction}
+    B -- Yes --> C[409 Conflict<br/>BR-01 violation]
+    B -- No --> D{acquire pg_advisory_xact_lock<br/>household_id hash}
+    D --> E{re-check pending payment<br/>inside transaction}
     E -- Yes --> F[rollback + 409]
-    E -- No --> G[INSERT waste_pickup\nwith partial-UNIQUE guard]
+    E -- No --> G[INSERT waste_pickup<br/>with partial-UNIQUE guard]
     G --> H[201 Created]
 ```
 
@@ -85,15 +85,15 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     S->>DB: BEGIN tx
-    S->>R: UpdateStatus(tx, id, pending_payment=false)\nWHERE status='scheduled'
-    R->>DB: UPDATE waste_pickups SET status='completed'\nWHERE id=? AND status='scheduled'
+    S->>R: UpdateStatus(tx, id, pending_payment=false)<br/>WHERE status='scheduled'
+    R->>DB: UPDATE waste_pickups SET status='completed'<br/>WHERE id=? AND status='scheduled'
     DB-->>R: rows affected (1 = OK, 0 = conflict)
     alt rows affected == 0
         R-->>S: ErrConflict
         S->>DB: ROLLBACK
     else rows affected == 1
         S->>R: CreateWithTx(tx, payment)
-        R->>DB: INSERT INTO payments\n(partial-UNIQUE index guard)
+        R->>DB: INSERT INTO payments<br/>(partial-UNIQUE index guard)
         DB-->>R: payment row
         R-->>S: payment
         S->>DB: COMMIT
@@ -120,8 +120,8 @@ sequenceDiagram
     participant R as Repository
     participant DB as PostgreSQL
 
-    C->>H: PUT /api/payments/:id/confirm\nmultipart/form-data proof file
-    H->>H: check Content-Type in allowlist\n(image/jpeg, image/png, application/pdf)
+    C->>H: PUT /api/payments/:id/confirm<br/>multipart/form-data proof file
+    H->>H: check Content-Type in allowlist<br/>(image/jpeg, image/png, application/pdf)
     H->>H: sniff magic bytes (FF D8 FF, 89 PNG, 25 50 44 46)
     alt invalid MIME or magic bytes
         H-->>C: 400 Bad Request
@@ -135,7 +135,7 @@ sequenceDiagram
         else S3 upload succeeds
             M-->>S: object URL
             S->>R: Confirm(id, proofURL, paidAt)
-            R->>DB: UPDATE payments SET status='paid'\nproof_file_url=? WHERE id=? AND status='pending'
+            R->>DB: UPDATE payments SET status='paid'<br/>proof_file_url=? WHERE id=? AND status='pending'
             alt DB update fails
                 DB-->>R: error
                 R-->>S: error
@@ -173,7 +173,7 @@ sequenceDiagram
     M->>W: go worker.Run(ctx)
     loop every WORKER_CANCEL_INTERVAL
         W->>R: CancelExpiredOrganicPickups(ctx, cutoffTime)
-        R->>DB: UPDATE waste_pickups\nSET status='canceled'\nWHERE type='organic' AND status='pending'\nAND created_at < now() - cutoff
+        R->>DB: UPDATE waste_pickups<br/>SET status='canceled'<br/>WHERE type='organic' AND status='pending'<br/>AND created_at < now() - cutoff
         DB-->>R: rows affected
         R-->>W: count canceled
         W->>W: log count + emit metric

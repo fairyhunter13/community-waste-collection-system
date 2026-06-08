@@ -13,19 +13,19 @@ command starts all services: `make up` (or `docker compose -f deployments/docker
 ```mermaid
 graph LR
     subgraph App
-        APP["app\n:8080 HTTP\n:2112 metrics"]
+        APP["app<br/>:8080 HTTP<br/>:2112 metrics"]
     end
 
     subgraph Storage
-        PG["postgres:17\n:5432"]
-        MN["minio\n:9000 S3 API\n:9001 console"]
+        PG["postgres:17<br/>:5432"]
+        MN["minio<br/>:9000 S3 API<br/>:9001 console"]
     end
 
     subgraph Observability
-        JG["jaeger\n:4318 OTLP HTTP\n:16686 UI"]
-        LK["loki\n:3100 push/query"]
-        PT["promtail\n(tail container stdout)"]
-        GF["grafana\n:3000 UI"]
+        JG["jaeger<br/>:4318 OTLP HTTP<br/>:16686 UI"]
+        LK["loki<br/>:3100 push/query"]
+        PT["promtail<br/>(tail container stdout)"]
+        GF["grafana<br/>:3000 UI"]
     end
 
     APP -->|SQL via sqlx| PG
@@ -51,17 +51,17 @@ Three correlated signal types. All carry the same `trace_id`.
 graph LR
     APP["app process"]
 
-    APP -->|Prometheus scrape\nGET :2112/metrics| PROM["Grafana\n(Prometheus data source)"]
-    APP -->|OTLP/HTTP POST\njaeger:4318| JAEGER["Jaeger UI\n:16686"]
-    APP -->|slog JSON\nstdout| PT["Promtail"]
-    PT -->|Loki push API\nloki:3100/loki/api/v1/push| LOKI["Loki"]
-    LOKI -->|LogQL query| GF["Grafana\n:3000"]
+    APP -->|Prometheus scrape<br/>GET :2112/metrics| PROM["Grafana<br/>(Prometheus data source)"]
+    APP -->|OTLP/HTTP POST<br/>jaeger:4318| JAEGER["Jaeger UI<br/>:16686"]
+    APP -->|slog JSON<br/>stdout| PT["Promtail"]
+    PT -->|Loki push API<br/>loki:3100/loki/api/v1/push| LOKI["Loki"]
+    LOKI -->|LogQL query| GF["Grafana<br/>:3000"]
     JAEGER -->|Trace link| GF
     PROM --> GF
 
-    GF -->|"waste-collection" dashboard| D1["Request rates, latency,\npickup counts by type/status"]
-    GF -->|"business-operations" dashboard| D2["Payment totals, BR violation rates,\nworker cancel counts"]
-    GF -->|"logs-and-traces" dashboard| D3["Log stream with\ntrace_id deep-links to Jaeger"]
+    GF -->|"waste-collection" dashboard| D1["Request rates, latency,<br/>pickup counts by type/status"]
+    GF -->|"business-operations" dashboard| D2["Payment totals, BR violation rates,<br/>worker cancel counts"]
+    GF -->|"logs-and-traces" dashboard| D3["Log stream with<br/>trace_id deep-links to Jaeger"]
 ```
 
 ---
@@ -82,17 +82,17 @@ sequenceDiagram
     participant MS as Metrics server
 
     OS->>M: SIGTERM (or SIGINT)
-    M->>M: signal.Notify fires\ncancel root context
+    M->>M: signal.Notify fires<br/>cancel root context
     M->>W: context.Done() channel closes
-    W->>W: ticker.Stop()\ndrain current tick if in-flight
+    W->>W: ticker.Stop()<br/>drain current tick if in-flight
     W-->>M: goroutine exits, wg.Done()
     M->>E: e.Shutdown(ctx) with HTTPShutdownTimeout
-    E->>E: stop accepting new connections\nwait for in-flight handlers to complete
+    E->>E: stop accepting new connections<br/>wait for in-flight handlers to complete
     E-->>M: shutdown complete
     M->>MS: metricsSrv.Shutdown(ctx)
     MS-->>M: metrics server stopped
-    M->>M: tracerShutdown(ctx)\nflush pending OTel spans
-    M->>M: wg.Wait() unblocks\nprocess exits 0
+    M->>M: tracerShutdown(ctx)<br/>flush pending OTel spans
+    M->>M: wg.Wait() unblocks<br/>process exits 0
 ```
 
 **Code:** `cmd/api/main.go:160-210`. The `sync.WaitGroup` ensures the
