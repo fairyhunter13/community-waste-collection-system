@@ -198,6 +198,11 @@ func (s *E2ESuite) TestPayments_ConcurrentDirectCreate_PartialUniqueWins() {
 func (s *E2ESuite) TestPickups_ConcurrentCreate_SameHousehold_AdvisoryLockSerializes() {
 	const N = 8
 
+	// TestPickup_RateLimit runs immediately before this test (alphabetically
+	// _R < s_C) and fires 60 sequential POST /api/pickups, draining the
+	// token bucket. Wait for the bucket to recover before the setup call.
+	time.Sleep(500 * time.Millisecond)
+
 	// Create household + one pending payment so BR-01 is in play.
 	var hResp, pResp map[string]any
 	r := s.do(http.MethodPost, "/api/households", map[string]any{
