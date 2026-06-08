@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"log/slog"
@@ -139,8 +138,7 @@ func (h *Handler) ConfirmPayment(c echo.Context) error {
 	}
 
 	// Gate 2: magic-byte sniff — read first 512 bytes, detect the actual type,
-	// and reject if it does not match the declared type. io.MultiReader rewinds
-	// so the full file body is still available for the service upload call.
+	// and reject if it does not match the declared type.
 	sniffBuf := make([]byte, 512)
 	n, err := io.ReadFull(file, sniffBuf)
 	if err != nil && err != io.ErrUnexpectedEOF {
@@ -152,10 +150,13 @@ func (h *Handler) ConfirmPayment(c echo.Context) error {
 			"proof file content does not match a supported type")
 	}
 
-	// Rewind: combine the already-read prefix with the remainder.
-	fullReader := io.MultiReader(bytes.NewReader(sniffBuf[:n]), file)
+	// Seek back so the S3 SDK receives a seekable io.ReadSeeker (required for
+	// payload checksum computation on non-TLS endpoints like MinIO).
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return respondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "could not rewind proof file")
+	}
 
-	payment, err := h.paymentSvc.Confirm(c.Request().Context(), id, fullReader, header.Size, declaredType)
+	payment, err := h.paymentSvc.Confirm(c.Request().Context(), id, file, header.Size, declaredType)
 	if err != nil {
 		return mapError(c, err)
 	}
