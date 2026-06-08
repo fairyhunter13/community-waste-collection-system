@@ -84,8 +84,10 @@ func pathf(format string, args ...any) string {
 }
 
 // jpegProofBody builds a multipart body carrying a single "proof" part whose
-// part-level Content-Type header is image/jpeg. mime/multipart.CreateFormFile
-// would emit application/octet-stream, which the handler's allowlist rejects.
+// part-level Content-Type header is image/jpeg. The content starts with the
+// JPEG SOI magic bytes (0xFF 0xD8 0xFF) so that the handler's magic-byte sniff
+// accepts it; mime/multipart.CreateFormFile would emit application/octet-stream,
+// which the handler's allowlist rejects.
 func jpegProofBody() (body *bytes.Buffer, contentType string, err error) {
 	body = &bytes.Buffer{}
 	mw := multipart.NewWriter(body)
@@ -96,7 +98,10 @@ func jpegProofBody() (body *bytes.Buffer, contentType string, err error) {
 	if err != nil {
 		return nil, "", err
 	}
-	if _, err = part.Write([]byte("fake-jpeg-data")); err != nil {
+	// Minimal JPEG header: SOI (0xFF 0xD8) + APP0 marker (0xFF 0xE0).
+	// http.DetectContentType requires \xFF\xD8\xFF prefix to classify as image/jpeg.
+	jpegHeader := []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00}
+	if _, err = part.Write(jpegHeader); err != nil {
 		return nil, "", err
 	}
 	if err = mw.Close(); err != nil {
