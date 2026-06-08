@@ -18,6 +18,8 @@ import (
 // s3API is the subset of aws-sdk-go-v2 s3.Client used by S3Client, enabling test injection.
 type s3API interface {
 	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error)
+	HeadBucket(ctx context.Context, params *s3.HeadBucketInput, optFns ...func(*s3.Options)) (*s3.HeadBucketOutput, error)
 }
 
 // S3Client is an S3-compatible storage client backed by aws-sdk-go-v2.
@@ -49,6 +51,20 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 		bucket:   cfg.S3Bucket,
 		endpoint: cfg.S3Endpoint,
 	}, nil
+}
+
+// EnsureBucket creates the configured bucket if it does not already exist.
+// Call this once at application startup.
+func (c *S3Client) EnsureBucket(ctx context.Context) error {
+	_, err := c.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(c.bucket)})
+	if err == nil {
+		return nil
+	}
+	_, err = c.client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(c.bucket)})
+	if err != nil {
+		return fmt.Errorf("create bucket %s: %w", c.bucket, err)
+	}
+	return nil
 }
 
 // Upload uploads a file to S3-compatible storage and returns the object's public URL.
