@@ -29,11 +29,11 @@ can be unit-tested in isolation using the generated mocks.
 
 | # | Rule | Enforcement location |
 |---|------|----------------------|
-| BR-01 | Household with a pending payment cannot create a new pickup | `service/pickup.go` Create — `pg_advisory_xact_lock` + partial UNIQUE index `uq_payments_one_pending_per_household` |
+| BR-01 | Household with a pending payment cannot create a new pickup | `service/pickup.go` Create — `EXISTS` check via `HasPendingPaymentForHousehold` + partial UNIQUE index `uq_payments_one_pending_per_household` as DB-level guard |
 | BR-02 | Only pending pickups can be scheduled; only scheduled can be completed or cancelled | Conditional `UPDATE … WHERE status=?` → `ErrConflict` on wrong status |
 | BR-03 | Electronic pickup requires `safety_check: true` before scheduling | Service validation → `ErrBusinessRule` → 422 |
 | BR-04 | Organic pickups not scheduled within 3 days are auto-cancelled | `worker/organic_canceler.go` — ticks on `WORKER_CANCEL_INTERVAL`, exits cleanly on context cancel |
-| BR-05 | Completing a pickup atomically auto-creates a payment record | `SELECT … FOR UPDATE` + `BEGIN/COMMIT` transaction in `service/pickup.go` Complete |
+| BR-05 | Completing a pickup atomically auto-creates a payment record | `BEGIN/COMMIT` transaction in `service/pickup.go` Complete — conditional `UPDATE WHERE status='scheduled'` + `INSERT payment` in one transaction |
 | BR-06 | Payment confirmation requires a multipart proof-of-payment file upload | MIME allowlist + magic-byte sniff + MinIO upload in `service/payment.go` Confirm |
 
 ## Request flow
@@ -89,3 +89,36 @@ for defaults and validation. Key tunables:
 `HTTPShutdownTimeout`). Both the HTTP server and the background worker
 participate in a `sync.WaitGroup` so the process does not exit until
 in-flight work is complete.
+
+## Wire surface
+
+One row per product endpoint — handler, service, repository, and primary test coverage.
+
+| Endpoint | Handler | Service | Repository | Coverage |
+|----------|---------|---------|------------|---------|
+| `POST /api/households` | `handler/household.go:CreateHousehold` | `service/household.go:Create` | `repository/household.go:Insert` | `handler/household_test.go`, `e2e/household_test.go` |
+| `GET /api/households` | `handler/household.go:ListHouseholds` | `service/household.go:List` | `repository/household.go:List` | `handler/household_test.go` |
+| `GET /api/households/:id` | `handler/household.go:GetHousehold` | `service/household.go:GetByID` | `repository/household.go:FindByID` | `handler/household_test.go` |
+| `DELETE /api/households/:id` | `handler/household.go:DeleteHousehold` | `service/household.go:Delete` | `repository/household.go:Delete` | `handler/household_test.go` |
+| `POST /api/pickups` | `handler/pickup.go:CreatePickup` | `service/pickup.go:Create` | `repository/pickup.go:Create` | `handler/pickup_test.go`, `e2e/concurrency_test.go` |
+| `GET /api/pickups` | `handler/pickup.go:ListPickups` | `service/pickup.go:List` | `repository/pickup.go:List` | `handler/pickup_test.go` |
+| `GET /api/pickups/:id` | `handler/pickup.go:GetPickup` | `service/pickup.go:GetByID` | `repository/pickup.go:FindByID` | `handler/pickup_test.go` |
+| `PUT /api/pickups/:id/schedule` | `handler/pickup.go:SchedulePickup` | `service/pickup.go:Schedule` | `repository/pickup.go:Schedule` | `handler/pickup_test.go`, `e2e/pickup_test.go` |
+| `PUT /api/pickups/:id/complete` | `handler/pickup.go:CompletePickup` | `service/pickup.go:Complete` | `repository/pickup.go:UpdateStatus`, `repository/payment.go:CreateWithTx` | `handler/pickup_test.go`, `e2e/concurrency_test.go` |
+| `PUT /api/pickups/:id/cancel` | `handler/pickup.go:CancelPickup` | `service/pickup.go:Cancel` | `repository/pickup.go:Cancel` | `handler/pickup_test.go` |
+| `POST /api/payments` | `handler/payment.go:CreatePayment` | `service/payment.go:Create` | `repository/payment.go:Create` | `handler/payment_test.go`, `e2e/payment_test.go` |
+| `GET /api/payments` | `handler/payment.go:ListPayments` | `service/payment.go:List` | `repository/payment.go:List` | `handler/payment_test.go` |
+| `PUT /api/payments/:id/confirm` | `handler/payment.go:ConfirmPayment` | `service/payment.go:Confirm` | `repository/payment.go:Confirm` | `handler/payment_test.go`, `e2e/payment_test.go` |
+| `GET /api/reports/household/:id` | `handler/report.go:HouseholdReport` | `service/report.go:HouseholdReport` | `repository/pickup.go`, `repository/payment.go` | `handler/report_test.go`, `e2e/report_test.go` |
+| `GET /api/reports/summary` | `handler/report.go:WasteSummary` | `service/report.go:WasteSummary` | `repository/pickup.go` | `handler/report_test.go` |
+
+## Domain invariants
+
+| Invariant | Enforcement | Test | HTTP on violation |
+|-----------|-------------|------|-------------------|
+| Single open billing cycle per household (BR-01) | `service/pickup.go:Create` EXISTS check + partial UNIQUE index `uq_payments_one_pending_per_household` | `service/pickup_test.go`, `e2e/concurrency_test.go` | 409 |
+| Pickup status state machine (BR-02) | Conditional `UPDATE WHERE status=<expected>` in repository; `ErrConflict` on wrong status | `service/pickup_test.go`, `e2e/pickup_test.go` | 409 |
+| Electronic safety check required (BR-03) | `service/pickup.go:Schedule` validates `safety_check` flag | `service/pickup_test.go` | 422 |
+| Organic auto-cancellation after 3 days (BR-04) | `worker/organic_canceler.go` ticks on `WORKER_CANCEL_INTERVAL` | `e2e/pickup_test.go` | — (background) |
+| Atomic pickup completion + payment creation (BR-05) | `service/pickup.go:Complete` DB transaction: UPDATE + INSERT | `service/pickup_test.go`, `e2e/concurrency_test.go` | 409 |
+| Proof-file required for payment confirmation (BR-06) | `handler/payment.go` MIME allowlist + magic-byte sniff; `service/payment.go:Confirm` nil-reader guard | `handler/payment_test.go`, `e2e/payment_test.go` | 400 |
