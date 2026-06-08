@@ -93,25 +93,32 @@ func RateLimiter(cfg *config.Config) echo.MiddlewareFunc {
 	}
 }
 
+// sweepOnce removes per-IP entries whose lastSeen is older than evictThreshold
+// relative to now. Returns the number of entries removed.
+func sweepOnce(now time.Time) int {
+	cutoffNano := now.Add(-evictThreshold).UnixNano()
+	removed := 0
+	limiters.Range(func(k, v any) bool {
+		l := v.(*ipLimiter)
+		if l.lastSeenNanoLoad() < cutoffNano {
+			limiters.Delete(k)
+			removed++
+		}
+		return true
+	})
+	if removed > 0 {
+		observability.RateLimitActiveClients.Sub(float64(removed))
+	}
+	return removed
+}
+
 // evictIdleClients sweeps the per-IP limiter map every evictInterval, removing
 // entries with lastSeen older than evictThreshold. Runs for the lifetime of
 // the process — the cost is bounded by the active-client gauge.
 func evictIdleClients() {
 	ticker := time.NewTicker(evictInterval)
 	defer ticker.Stop()
-	for range ticker.C {
-		cutoffNano := time.Now().Add(-evictThreshold).UnixNano()
-		removed := 0
-		limiters.Range(func(k, v any) bool {
-			l := v.(*ipLimiter)
-			if l.lastSeenNanoLoad() < cutoffNano {
-				limiters.Delete(k)
-				removed++
-			}
-			return true
-		})
-		if removed > 0 {
-			observability.RateLimitActiveClients.Sub(float64(removed))
-		}
+	for t := range ticker.C {
+		sweepOnce(t)
 	}
 }
