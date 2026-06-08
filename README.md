@@ -331,37 +331,40 @@ make bench
 
 ## Data Model
 
-```text
-households
-  id          UUID PK
-  owner_name  TEXT NOT NULL
-  address     TEXT NOT NULL
-  created_at  TIMESTAMPTZ
-  updated_at  TIMESTAMPTZ
-      │
-      │ 1:N (CASCADE DELETE)
-      ▼
-waste_pickups
-  id             UUID PK
-  household_id   UUID FK → households.id
-  type           ENUM (organic, non-organic, hazardous, electronic)
-  status         ENUM (pending, scheduled, completed, canceled)
-  pickup_date    TIMESTAMPTZ NULL
-  safety_check   BOOL (electronic only)
-  created_at     TIMESTAMPTZ
-  updated_at     TIMESTAMPTZ
-      │
-      │ 1:1 (CASCADE DELETE)
-      ▼
-payments
-  id             UUID PK
-  waste_pickup_id UUID FK → waste_pickups.id
-  household_id   UUID FK → households.id
-  amount         NUMERIC(12,2)
-  status         ENUM (pending, paid, failed)
-  proof_url      TEXT NULL
-  created_at     TIMESTAMPTZ
-  updated_at     TIMESTAMPTZ
+```mermaid
+erDiagram
+    HOUSEHOLDS ||--o{ WASTE_PICKUPS : has
+    WASTE_PICKUPS ||--|| PAYMENTS : "settles via"
+
+    HOUSEHOLDS {
+        UUID        id          PK
+        TEXT        owner_name
+        TEXT        address
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    WASTE_PICKUPS {
+        UUID        id              PK
+        UUID        household_id    FK
+        ENUM        type            "organic|non-organic|hazardous|electronic"
+        ENUM        status          "pending|scheduled|completed|canceled"
+        TIMESTAMPTZ pickup_date
+        BOOL        safety_check
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    PAYMENTS {
+        UUID        id              PK
+        UUID        waste_pickup_id FK
+        UUID        household_id    FK
+        NUMERIC     amount
+        ENUM        status          "pending|paid|failed"
+        TEXT        proof_url
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
 ```
 
 Deleting a household cascades to all its pickups, which cascade to all their payments.
@@ -644,7 +647,7 @@ sequenceDiagram
 
     C->>H: PUT /api/pickups/:id/schedule (BR-02 conditional UPDATE)
     H->>S: PickupService.Schedule
-    S->>R: UPDATE … WHERE id=? AND status='pending'
+    S->>R: UPDATE ... WHERE id=? AND status='pending'
     R->>DB: SQL
     DB-->>R: 1 row affected
     R-->>S: scheduled pickup
@@ -663,7 +666,7 @@ sequenceDiagram
     Note over W, DB: BR-04 every WORKER_CANCEL_INTERVAL
     W->>DB: SELECT organic + pending + created_at < now-N days
     DB-->>W: expired rows
-    W->>DB: UPDATE … SET status='canceled' WHERE status='pending'
+    W->>DB: UPDATE ... SET status='canceled' WHERE status='pending'
 
     C->>H: PUT /api/payments/:id/confirm (multipart proof)
     H->>S: PaymentService.Confirm (MIME allowlist)
