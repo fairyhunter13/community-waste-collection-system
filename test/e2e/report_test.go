@@ -49,11 +49,6 @@ func (s *E2ESuite) TestHouseholdHistory_200() {
 }
 
 func (s *E2ESuite) TestWasteSummary_WithData() {
-	// Wait for the rate-limiter token bucket to recover after the burst-flood
-	// in TestRateLimit_429EnvelopeWithMeta (which runs immediately before this
-	// test alphabetically). At 50 RPS, 300 ms restores ~15 tokens.
-	time.Sleep(300 * time.Millisecond)
-
 	// Create two organic and one plastic pickup so aggregation can be verified.
 	var hResp map[string]any
 	resp := s.do(http.MethodPost, "/api/households", map[string]any{
@@ -158,6 +153,11 @@ func (s *E2ESuite) TestPaymentSummary_WithData() {
 // TestWasteSummary_CanceledPickupsIncluded verifies that canceled pickups appear
 // in the waste summary under their type with canceled status counts.
 func (s *E2ESuite) TestWasteSummary_CanceledPickupsIncluded() {
+	// TestRateLimit_429EnvelopeWithMeta runs just before the TestWasteSummary_*
+	// block (R < W) and fires 150 parallel requests, draining the token bucket.
+	// This sleep recovers enough tokens for both this test and WithData.
+	time.Sleep(300 * time.Millisecond)
+
 	var hResp map[string]any
 	resp := s.do(http.MethodPost, "/api/households", map[string]any{
 		"owner_name": "Canceled Summary Owner",
