@@ -12,12 +12,12 @@ each transition.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending : POST /api/pickups
-    pending --> scheduled : PUT /pickups/:id/schedule
-    pending --> canceled : PUT /pickups/:id/cancel
-    pending --> canceled : BR-04 worker auto-cancel
-    scheduled --> completed : PUT /pickups/:id/complete
-    scheduled --> canceled : PUT /pickups/:id/cancel
+    [*] --> pending : create pickup
+    pending --> scheduled : schedule
+    pending --> canceled : cancel
+    pending --> canceled : BR-04 auto-cancel
+    scheduled --> completed : complete
+    scheduled --> canceled : cancel
     completed --> [*]
     canceled --> [*]
 ```
@@ -35,9 +35,9 @@ confirmed by uploading a proof file (BR-06).
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending : auto-created on pickup complete (BR-05)
-    pending --> paid : PUT /payments/:id/confirm
-    pending --> failed : admin intervention (future path)
+    [*] --> pending : auto-created on complete
+    pending --> paid : confirm with proof
+    pending --> failed : admin action
     paid --> [*]
     failed --> [*]
 ```
