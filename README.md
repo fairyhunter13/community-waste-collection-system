@@ -473,7 +473,7 @@ Error:
 | Loki | http://localhost:3100 | Log aggregation (Promtail → Loki) |
 | pprof | http://localhost:6060/debug/pprof/ | CPU/memory profiling |
 
-### Prometheus Metrics (14 instruments)
+### Prometheus Metrics (21 instruments)
 
 | Metric | Type | Description |
 |---|---|---|
@@ -490,6 +490,11 @@ Error:
 | `worker_cycles_total` | Counter | Background worker execution cycles |
 | `worker_cycle_duration_seconds` | Histogram | Worker cycle duration |
 | `worker_expired_found_total` | Counter | Expired organic pickups found per cycle |
+| `worker_cycles_failed_total` | Counter | Background worker cycles that terminated with an error |
+| `rate_limit_active_clients` | Gauge | Number of distinct IPs with an active rate-limit bucket |
+| `db_pool_open_connections` | Gauge | Current open DB connections in the pool |
+| `db_pool_in_use` | Gauge | DB connections currently in use |
+| `db_pool_idle` | Gauge | DB connections currently idle |
 | `s3_upload_duration_seconds` | Histogram | S3 upload latency |
 | `s3_upload_bytes_total` | Counter | Total bytes uploaded to S3 |
 | `s3_errors_total` | Counter | S3 operation errors |

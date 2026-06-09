@@ -76,20 +76,20 @@ Every response uses the same JSON envelope. The handler helpers
 ```json
 {
   "success": false,
-  "code": "validation_error",
+  "code": "VALIDATION_ERROR",
   "message": "owner_name is required"
 }
 ```
 
 | HTTP status | `code` value | Trigger |
 |---|---|---|
-| 400 | `validation_error` | Input fails validator.v10 or body-limit exceeded |
-| 404 | `not_found` | Resource does not exist |
-| 409 | `conflict` | BR-01 pending payment, BR-02 wrong status |
-| 413 | `request_too_large` | Body exceeds `MAX_UPLOAD_SIZE_MB` |
-| 422 | `business_rule_violation` | BR-03 electronic safety check |
-| 429 | `rate_limit_exceeded` | Pickup creation rate limit hit |
-| 500 | `internal_error` | Unexpected server error |
+| 400 | `VALIDATION_ERROR` | Input fails validator.v10 or body-limit exceeded |
+| 404 | `NOT_FOUND` | Resource does not exist |
+| 409 | `CONFLICT` | BR-01 pending payment, BR-02 wrong status |
+| 413 | `FILE_TOO_LARGE` | File exceeds `MAX_UPLOAD_SIZE_MB` |
+| 422 | `BUSINESS_RULE_VIOLATION` | BR-03 electronic safety check |
+| 429 | `RATE_LIMITED` | Pickup creation rate limit hit |
+| 500 | `INTERNAL_ERROR` | Unexpected server error |
 
 ---
 
