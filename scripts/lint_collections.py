@@ -38,7 +38,7 @@ PRIMARY_CODES: dict[str, set[int]] = {
     "Household History": {200, 404, 500},
 }
 
-EXPECTED_FOLDERS = {"Households", "Waste Pickups", "Payments", "Reports"}
+EXPECTED_FOLDERS = {"Households", "Waste Pickups", "Payments", "Reports", "Cleanup"}
 MIN_REQUESTS = 25
 
 
@@ -90,10 +90,10 @@ def check_postman(pm: dict) -> list[str]:
                         f"Postman [{folder_name}] {req_name!r}: example {r.get('name', '?')!r} missing field {field!r}"
                     )
 
-    # Delete Household must be in Households, not Reports
+    # Delete Household must be in the Cleanup folder (teardown runs last in Newman)
     dh = request_map.get("Delete Household")
-    if dh and dh["folder"] == "Reports":
-        errors.append("Postman: 'Delete Household' is in Reports — should be in Households")
+    if dh and dh["folder"] != "Cleanup":
+        errors.append(f"Postman: 'Delete Household' is in {dh['folder']!r} — should be in 'Cleanup'")
 
     return errors
 

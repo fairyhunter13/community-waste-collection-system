@@ -376,7 +376,7 @@ Deleting a household cascades to all its pickups, which cascade to all their pay
 
 ### Postman / Insomnia Collections
 
-Two equivalent collection exports live under `api/` — 27 requests across 4 folders (Households, Waste Pickups, Payments, Reports):
+Two equivalent collection exports live under `api/` — 27 requests across 5 folders (Households, Waste Pickups, Payments, Reports, Cleanup). The `Cleanup` folder contains the destructive `Delete Household` request and executes last in Newman smoke runs so earlier folders exercise the success path.
 
 | Tool | File |
 |------|------|

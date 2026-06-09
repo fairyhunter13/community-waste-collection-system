@@ -12,6 +12,7 @@ Run: python3 scripts/sync_insomnia_examples.py
 """
 import json
 import sys
+import uuid as _uuid
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -428,8 +429,47 @@ def _extract_path(url: str) -> str:
     return url
 
 
+def _ensure_cleanup_group(ins: dict) -> None:
+    """Create a Cleanup request_group (if absent) and reparent Delete Household into it."""
+    resources = ins["resources"]
+    workspace_id = next(r["_id"] for r in resources if r["_type"] == "workspace")
+
+    cleanup_group = next(
+        (r for r in resources if r["_type"] == "request_group" and r["name"] == "Cleanup"),
+        None,
+    )
+    if cleanup_group is None:
+        cleanup_id = "fld_" + _uuid.uuid4().hex
+        cleanup_group = {
+            "_id": cleanup_id,
+            "_type": "request_group",
+            "name": "Cleanup",
+            "parentId": workspace_id,
+            "description": "",
+            "environment": {},
+            "metaSortKey": 9999,
+        }
+        resources.append(cleanup_group)
+        print("Created Cleanup request_group in Insomnia collection")
+
+    dh = next(
+        (r for r in resources if r["_type"] == "request" and r["name"] == "Delete Household"),
+        None,
+    )
+    if dh is None:
+        return
+    if dh.get("parentId") == cleanup_group["_id"]:
+        print("'Delete Household' already in Cleanup — skipping")
+    else:
+        dh["parentId"] = cleanup_group["_id"]
+        print("Moved 'Delete Household' to Cleanup in Insomnia collection")
+
+
 def main() -> None:
     ins = json.loads(INS_FILE.read_text())
+
+    # ── Step 0: ensure Cleanup group and Delete Household placement ──────────
+    _ensure_cleanup_group(ins)
 
     env_resource = next((r for r in ins["resources"] if r["_type"] == "environment"), None)
 

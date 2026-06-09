@@ -3,7 +3,7 @@
 Enrich api/community-waste.postman_collection.json so that every
 primary request carries a saved response example for each status code
 documented in api/openapi.yaml, and moves Delete Household to the
-Households folder.
+Cleanup folder (created at the end of item[] if absent).
 
 Run: python3 scripts/enrich_postman_examples.py
 """
@@ -374,20 +374,35 @@ def enrich(pm: dict) -> dict:
                     _make_example(req_name, code, orig_req)
                 )
 
-    # ── Step 2: move Delete Household to the Households folder ──────────────
-    reports_folder = next(f for f in pm["item"] if f["name"] == "Reports")
-    households_folder = next(f for f in pm["item"] if f["name"] == "Households")
+    # ── Step 2: move Delete Household to the Cleanup folder ─────────────────
+    # Ensure Cleanup folder exists at the end of item[]
+    cleanup_folder = next((f for f in pm["item"] if f["name"] == "Cleanup"), None)
+    if cleanup_folder is None:
+        cleanup_folder = {"name": "Cleanup", "item": []}
+        pm["item"].append(cleanup_folder)
+        print("Created 'Cleanup' folder")
 
-    del_idx = next(
-        (i for i, it in enumerate(reports_folder["item"]) if it["name"] == "Delete Household"),
-        None,
-    )
-    if del_idx is not None:
-        dh_item = reports_folder["item"].pop(del_idx)
-        households_folder["item"].append(dh_item)
-        print("Moved 'Delete Household' from Reports → Households")
+    already_in_cleanup = any(it["name"] == "Delete Household" for it in cleanup_folder["item"])
+    if already_in_cleanup:
+        print("'Delete Household' already in Cleanup folder — skipping move")
     else:
-        print("'Delete Household' already in correct folder — skipping move")
+        # Search Households first, then Reports as legacy fallback
+        households_folder = next((f for f in pm["item"] if f["name"] == "Households"), None)
+        reports_folder = next((f for f in pm["item"] if f["name"] == "Reports"), None)
+        moved = False
+        for src in [f for f in [households_folder, reports_folder] if f]:
+            del_idx = next(
+                (i for i, it in enumerate(src["item"]) if it["name"] == "Delete Household"),
+                None,
+            )
+            if del_idx is not None:
+                dh_item = src["item"].pop(del_idx)
+                cleanup_folder["item"].append(dh_item)
+                print(f"Moved 'Delete Household' from {src['name']} → Cleanup")
+                moved = True
+                break
+        if not moved:
+            print("'Delete Household' not found in any source folder — skipping move")
 
     return pm
 
