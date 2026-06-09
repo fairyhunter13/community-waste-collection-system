@@ -29,8 +29,6 @@ func Connect(cfg *config.Config) (*sqlx.DB, error) {
 	db.SetConnMaxIdleTime(cfg.DBConnMaxIdleTime)
 	db.SetConnMaxLifetime(cfg.DBConnMaxLifetime)
 
-	StartDBPoolStatsCollector(db)
-
 	return db, nil
 }
 
@@ -79,19 +77,23 @@ func injectApplicationName(dsn, appName string) string {
 var dbStatsTickInterval = 15 * time.Second
 
 // StartDBPoolStatsCollector starts a background goroutine that scrapes
-// db.Stats() and republishes it as Prometheus gauges. Safe to call once per
-// DB instance; subsequent calls would double-count.
-func StartDBPoolStatsCollector(db *sqlx.DB) {
+// db.Stats() and republishes it as Prometheus gauges. The goroutine stops
+// when ctx is cancelled. Safe to call once per DB instance; subsequent calls
+// would double-count.
+func StartDBPoolStatsCollector(ctx context.Context, db *sqlx.DB) {
 	go func() {
 		ticker := time.NewTicker(dbStatsTickInterval)
 		defer ticker.Stop()
-		ctx := context.Background()
-		_ = ctx // reserved for future ctx-aware metrics
-		for range ticker.C {
-			s := db.Stats()
-			observability.DBPoolOpenConnections.Set(float64(s.OpenConnections))
-			observability.DBPoolInUse.Set(float64(s.InUse))
-			observability.DBPoolIdle.Set(float64(s.Idle))
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s := db.Stats()
+				observability.DBPoolOpenConnections.Set(float64(s.OpenConnections))
+				observability.DBPoolInUse.Set(float64(s.InUse))
+				observability.DBPoolIdle.Set(float64(s.Idle))
+			}
 		}
 	}()
 }
