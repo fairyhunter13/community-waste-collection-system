@@ -262,6 +262,8 @@ curl -s "http://localhost:8080/api/reports/households/$HH_ID/history" | jq .
 | `DB_MAX_OPEN_CONNS` | `25` | DB connection pool max open |
 | `DB_MAX_IDLE_CONNS` | `10` | DB connection pool max idle |
 | `DB_CONN_MAX_IDLE_TIME` | `5m` | Max time a connection can remain idle before being closed |
+| `DB_CONN_MAX_LIFETIME` | `30m` | Max lifetime of a DB connection before it is recycled |
+| `DB_APPLICATION_NAME` | `waste-collection-api` | `application_name` sent to Postgres (visible in `pg_stat_activity`) |
 | `S3_ENDPOINT` | `http://localhost:9000` | S3-compatible storage endpoint |
 | `S3_BUCKET` | `waste-proofs` | Bucket for payment proof uploads |
 | `S3_ACCESS_KEY` | `minioadmin` | S3 access key |
@@ -269,6 +271,11 @@ curl -s "http://localhost:8080/api/reports/households/$HH_ID/history" | jq .
 | `S3_REGION` | `us-east-1` | S3 region (required by AWS SDK; MinIO ignores it) |
 | `S3_USE_PATH_STYLE` | `true` | Use path-style S3 URLs (required for MinIO) |
 | `MAX_UPLOAD_SIZE_MB` | `10` | Maximum proof file upload size |
+| `HTTP_READ_HEADER_TIMEOUT` | `5s` | Max time to read request headers |
+| `HTTP_READ_TIMEOUT` | `15s` | Max time to read the full request (headers + body) |
+| `HTTP_WRITE_TIMEOUT` | `15s` | Max time to write the response |
+| `HTTP_IDLE_TIMEOUT` | `60s` | Max time a keep-alive connection can be idle |
+| `HTTP_SHUTDOWN_TIMEOUT` | `15s` | Grace period for in-flight requests on shutdown |
 | `RATE_LIMIT_RPS` | `5` | Pickup creation rate limit (req/sec/IP) |
 | `RATE_LIMIT_BURST` | `10` | Rate limit burst capacity |
 | `LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
@@ -279,6 +286,8 @@ curl -s "http://localhost:8080/api/reports/households/$HH_ID/history" | jq .
 | `OTEL_SERVICE_VERSION` | `0.1.0` | OTel service version tag on all spans |
 | `WORKER_CANCEL_INTERVAL` | `1h` | How often the organic-canceler worker runs |
 | `WORKER_ORGANIC_CUTOFF_DAYS` | `3` | Days after which a pending organic pickup is auto-cancelled |
+| `WORKER_QUERY_TIMEOUT` | `5s` | Max time for a single DB query inside the worker |
+| `WORKER_SHUTDOWN_TIMEOUT` | `30s` | Grace period for the worker to finish its current cycle on shutdown |
 | `CODECOV_TOKEN` | — | Codecov upload token (CI only, never commit the value) |
 
 See `.env.example` for a complete reference with comments.
