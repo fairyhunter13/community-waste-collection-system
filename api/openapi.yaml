@@ -636,6 +636,34 @@ paths:
                     type: string
                     example: "database unreachable"
 
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      operationId: readinessCheck
+      description: Returns 200 when the database is reachable. Used by orchestrators to gate traffic until the DB connection pool is up.
+      responses:
+        '200':
+          description: Service is ready to accept traffic
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ready"
+        '503':
+          description: Service is not yet ready (database unreachable)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "unready"
+
 components:
   parameters:
     HouseholdID:
