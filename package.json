@@ -1,0 +1,8 @@
+{
+  "name": "community-waste-tools",
+  "private": true,
+  "devDependencies": {
+    "insomnia-importers": "3.6.0",
+    "postman-collection": "5.3.0"
+  }
+}

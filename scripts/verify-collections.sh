@@ -25,7 +25,12 @@ python3 -c "import json; json.load(open('$INS_FILE'))"
 echo "Insomnia: valid JSON"
 
 echo ""
-echo "=== Layer B: Newman collection load ==="
+echo "=== Layer B: SDK-level load checks ==="
+node "$ROOT/scripts/verify_postman_load.js"
+node "$ROOT/scripts/verify_insomnia_load.js"
+
+echo ""
+echo "=== Layer C: Newman collection load ==="
 # Newman parses and queues every request; network errors are expected
 # when no live server is running — the exit code is still 0 because
 # the test scripts assert 'Error envelope has error object'.
@@ -37,7 +42,7 @@ npx --yes newman@6 run "$PM_FILE" \
 
 echo ""
 if [[ -n "${BASE_URL:-}" ]]; then
-  echo "=== Layer C: live smoke against $BASE_URL ==="
+  echo "=== Layer D: live smoke against $BASE_URL ==="
   npx --yes newman@6 run "$PM_FILE" \
     --env-var "base_url=$BASE_URL" \
     --reporters cli,json \
@@ -54,5 +59,5 @@ print(r['run']['stats']['assertions']['failed'])
   fi
   echo "OK: 0 failures in live newman run"
 else
-  echo "=== Layer C: skipped (set BASE_URL to run live) ==="
+  echo "=== Layer D: skipped (set BASE_URL to run live) ==="
 fi
