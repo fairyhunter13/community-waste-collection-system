@@ -393,6 +393,8 @@ newman run api/community-waste.postman_collection.json \
   --env-var base_url=http://localhost:8080
 ```
 
+CI runs the official Postman SDK (`postman-collection`) and the Kong-maintained Insomnia importer (`insomnia-importers`) against both collections on every push. These are the exact parsers the desktop apps use on import, so a green `contract` job means the files will import cleanly into Postman and Insomnia.
+
 ### Health
 
 | Method | Path | Description |

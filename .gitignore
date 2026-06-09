@@ -34,3 +34,6 @@ go.work.sum
 
 # Local-only development notes (not part of the product)
 REQUIREMENTS_RAW.md
+
+# Node tooling (collection verifiers)
+node_modules/

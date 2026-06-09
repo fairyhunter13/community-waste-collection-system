@@ -216,6 +216,15 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install collection verifier deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify Postman collection loads (SDK)
+        run: node scripts/verify_postman_load.js
+
+      - name: Verify Insomnia collection loads (importer)
+        run: node scripts/verify_insomnia_load.js
+
       - name: Validate OpenAPI spec
         run: |
           npx --yes @redocly/cli@1.25.11 lint api/openapi.yaml \
