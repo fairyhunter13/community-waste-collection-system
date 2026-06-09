@@ -36,7 +36,7 @@ func BenchmarkCreateHousehold(b *testing.B) {
 	client := &http.Client{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		body := fmt.Sprintf(`{"name":"bench-%d","address":"Jl. Test %d","phone":"0812000%04d"}`, i, i, i)
+		body := fmt.Sprintf(`{"owner_name":"bench-%d","address":"Jl. Test %d"}`, i, i)
 		resp, err := client.Post(base+"/api/households", "application/json", strings.NewReader(body))
 		if err != nil {
 			b.Fatal(err)
