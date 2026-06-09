@@ -50,7 +50,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Created resource has a UUID id\", function () {",
                   "    if (pm.response.code === 201) {",
@@ -312,7 +316,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -406,7 +414,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -544,97 +556,6 @@
               "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household 00000000-0000-0000-0000-000000000000: not found\"\n  }\n}"
             }
           ]
-        },
-        {
-          "name": "Delete Household",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is in expected range\", function () {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
-                  "});",
-                  "pm.test(\"Response time is under 1000ms\", function () {",
-                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
-                  "});",
-                  "pm.test(\"Error envelope has error object\", function () {",
-                  "    if (pm.response.code >= 400) {",
-                  "        const body = pm.response.json();",
-                  "        pm.expect(body.success).to.be.false;",
-                  "        pm.expect(body).to.have.property(\"error\");",
-                  "        pm.expect(body.error).to.have.property(\"code\");",
-                  "        pm.expect(body.error).to.have.property(\"message\");",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "url": "{{base_url}}/api/households/{{household_id}}"
-          },
-          "response": [
-            {
-              "name": "204 No Content",
-              "originalRequest": {
-                "method": "DELETE",
-                "url": "{{base_url}}/api/households/{{household_id}}"
-              },
-              "status": "No Content",
-              "code": 204,
-              "_postman_previewlanguage": "json",
-              "header": [],
-              "cookie": [],
-              "body": ""
-            },
-            {
-              "name": "404 Not Found",
-              "originalRequest": {
-                "method": "DELETE",
-                "url": "{{base_url}}/api/households/{{household_id}}"
-              },
-              "status": "Not Found",
-              "code": 404,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                },
-                {
-                  "key": "X-Request-Id",
-                  "value": "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}"
-            },
-            {
-              "name": "500 Internal Server Error",
-              "originalRequest": {
-                "method": "DELETE",
-                "url": "{{base_url}}/api/households/{{household_id}}"
-              },
-              "status": "Internal Server Error",
-              "code": 500,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                },
-                {
-                  "key": "X-Request-Id",
-                  "value": "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}"
-            }
-          ]
         }
       ]
     },
@@ -661,7 +582,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Created resource has a UUID id\", function () {",
                   "    if (pm.response.code === 201) {",
@@ -944,7 +869,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Created resource has a UUID id\", function () {",
                   "    if (pm.response.code === 201) {",
@@ -1381,7 +1310,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -1497,7 +1430,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -1609,7 +1546,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -1924,7 +1865,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -2423,7 +2368,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -2547,7 +2496,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -2983,7 +2936,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -3065,7 +3022,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -3147,7 +3108,11 @@
                   "pm.test(\"Response envelope has success field\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property(\"success\");",
-                  "    pm.expect(body.success).to.be.true;",
+                  "    if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "        pm.expect(body.success).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(body.success).to.be.false;",
+                  "    }",
                   "});",
                   "pm.test(\"Error envelope has error object\", function () {",
                   "    if (pm.response.code >= 400) {",
@@ -3283,6 +3248,102 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household 00000000-0000-0000-0000-000000000000: not found\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cleanup",
+      "item": [
+        {
+          "name": "Delete Household",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is in expected range\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 404, 409, 422]);",
+                  "});",
+                  "pm.test(\"Response time is under 1000ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test(\"Error envelope has error object\", function () {",
+                  "    if (pm.response.code >= 400) {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.success).to.be.false;",
+                  "        pm.expect(body).to.have.property(\"error\");",
+                  "        pm.expect(body.error).to.have.property(\"code\");",
+                  "        pm.expect(body.error).to.have.property(\"message\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/households/{{household_id}}"
+          },
+          "response": [
+            {
+              "name": "204 No Content",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/households/{{household_id}}"
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/households/{{household_id}}"
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Request-Id",
+                  "value": "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}"
+            },
+            {
+              "name": "500 Internal Server Error",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/households/{{household_id}}"
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-Request-Id",
+                  "value": "7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}"
             }
           ]
         }

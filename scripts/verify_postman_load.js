@@ -49,8 +49,8 @@ try {
 }
 
 const folderCount = collection.items.count();
-if (folderCount !== 4) {
-  fail('expected 4 folders, got ' + folderCount);
+if (folderCount !== 5) {
+  fail('expected 5 folders, got ' + folderCount);
 }
 
 let totalRequests = 0;

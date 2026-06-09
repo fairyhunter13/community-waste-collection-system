@@ -586,7 +586,7 @@
     {
       "_id": "req_9554b41978964a268a43c1525b030f0f",
       "_type": "request",
-      "parentId": "fld_9c37ff9de38e4baca02042454e1ad412",
+      "parentId": "fld_20e0717596ea404489bff006c67aa8d4",
       "name": "Delete Household",
       "method": "DELETE",
       "url": "{{base_url}}/api/households/{{household_id}}",
@@ -596,6 +596,15 @@
       "authentication": {},
       "description": "### `DELETE /api/households/{{household_id}}`\n\n### Responses\n\n#### 204 No Content\n*(no response body)*\n\n#### 404 Not Found\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"household not found\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n\n#### 500 Internal Server Error\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INTERNAL_ERROR\",\n    \"message\": \"internal server error\"\n  },\n  \"meta\": {\n    \"request_id\": \"7a3f1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c\",\n    \"trace_id\": \"0000000000000000deadbeefcafebabe\",\n    \"span_id\": \"0102030405060708\"\n  }\n}\n```\n",
       "metaSortKey": -7
+    },
+    {
+      "_id": "fld_20e0717596ea404489bff006c67aa8d4",
+      "_type": "request_group",
+      "name": "Cleanup",
+      "parentId": "wrk_7dd4b88e4e0543d183b1c094d2fd9102",
+      "description": "",
+      "environment": {},
+      "metaSortKey": 9999
     }
   ]
 }

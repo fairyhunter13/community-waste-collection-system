@@ -49,7 +49,7 @@ try {
     counts[t] = (counts[t] || 0) + 1;
   }
 
-  const expected = { workspace: 1, environment: 1, request_group: 4, request: 27 };
+  const expected = { workspace: 1, environment: 1, request_group: 5, request: 27 };
   for (const [type, count] of Object.entries(expected)) {
     if (counts[type] !== count) {
       fail('expected ' + count + ' resources of type "' + type + '", got ' + (counts[type] || 0));
