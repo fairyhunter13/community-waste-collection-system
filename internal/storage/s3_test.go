@@ -48,7 +48,7 @@ func TestNewS3Client_ReturnsClient(t *testing.T) {
 		S3Region:       "us-east-1",
 		S3UsePathStyle: true,
 	}
-	client, err := NewS3Client(cfg)
+	client, err := NewS3Client(context.Background(), cfg)
 	require.NoError(t, err)
 	assert.NotNil(t, client)
 }

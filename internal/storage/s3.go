@@ -38,8 +38,8 @@ type S3Client struct {
 }
 
 // NewS3Client creates a new S3Client configured for the given application settings.
-func NewS3Client(cfg *config.Config) (*S3Client, error) {
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
+func NewS3Client(ctx context.Context, cfg *config.Config) (*S3Client, error) {
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx,
 		awsconfig.WithRegion(cfg.S3Region),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			cfg.S3AccessKey, cfg.S3SecretKey, "",

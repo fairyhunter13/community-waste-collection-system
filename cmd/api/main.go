@@ -66,7 +66,7 @@ func mustInitInfra(ctx context.Context, cfg *config.Config, logger *slog.Logger)
 		logger.Error("connect to database", "error", err)
 		os.Exit(1)
 	}
-	s3, err := storage.NewS3Client(cfg) //nolint:contextcheck // signature does not accept ctx
+	s3, err := storage.NewS3Client(ctx, cfg)
 	if err != nil {
 		logger.Error("init S3 client", "error", err)
 		os.Exit(1)
