@@ -21,6 +21,7 @@ comment:
 
 ignore:
   - "internal/mocks/**"
+  - "internal/observability/**" # excluded from COVERPKG in CI; init-time Prometheus registration has no branches
   - "cmd/**"
   - "test/**"
   - "scripts/**"
