@@ -48,6 +48,7 @@ func main() {
 	e := buildHTTPServer(cfg, logger, db, s3)
 
 	workerCtx, workerCancel := context.WithCancel(context.Background())
+	repository.StartDBPoolStatsCollector(workerCtx, db)
 	wg := startBackgroundWorker(workerCtx, cfg, repository.NewPickupRepository(db), logger)
 
 	startDebugServer(cfg, logger)
