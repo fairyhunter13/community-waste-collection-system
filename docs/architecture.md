@@ -62,15 +62,7 @@ Three signal types, all correlated via `trace_id`:
 
 ## Database
 
-PostgreSQL 17 with five migrations:
-
-| # | Migration | Purpose |
-|---|-----------|---------|
-| 000001 | Create tables | Baseline schema — households, waste_pickups, payments |
-| 000002 | Add indexes | Lookup indexes on foreign keys |
-| 000003 | Enum changes | Waste type enum updates |
-| 000004 | Unique pending payment | Partial UNIQUE index `uq_payments_one_pending_per_household` (BR-01 DB-level guard) |
-| 000005 | Performance indexes | Composite indexes for list + filter queries |
+PostgreSQL 17. Schema, indexes and migrations: [Data model](#data-model).
 
 ## Configuration
 
@@ -202,3 +194,320 @@ graph TD
     TestPickupService -->|sqlmock DB| MockDB["mock sqlx.DB"]
     TestPickupService -->|"NewPickupService(MockPR + MockPAR + MockDB)"| PS
 ```
+
+---
+
+## Business processes
+
+State machines for the core business rules, each paired with the code path that enforces it.
+
+
+### Pickup Lifecycle
+
+Every pickup moves through a defined set of states. Business rules gate
+each transition.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending : create pickup
+    pending --> scheduled : schedule
+    pending --> canceled : cancel
+    pending --> canceled : BR-04 auto-cancel
+    scheduled --> completed : complete
+    scheduled --> canceled : cancel
+    completed --> [*]
+    canceled --> [*]
+```
+
+**Enforcement:** `internal/service/pickup.go` — each transition uses a
+conditional `UPDATE … WHERE status = <expected>` that returns `ErrConflict`
+when the row is already in a different state (BR-02 safety net).
+
+---
+
+### Payment Lifecycle
+
+Payments are created automatically when a pickup completes (BR-05) and
+confirmed by uploading a proof file (BR-06).
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending : auto-created on complete
+    pending --> paid : confirm with proof
+    pending --> failed : admin action
+    paid --> [*]
+    failed --> [*]
+```
+
+**Enforcement:** `internal/service/payment.go:Confirm` — uploads the
+multipart proof file to MinIO, then performs a conditional DB update. On
+storage success + DB failure the uploaded object is deleted as best-effort
+cleanup.
+
+---
+
+### Pickup Creation — BR-01 Gate
+
+A household cannot have a new pickup created while a pending payment
+exists for it. The gate is enforced at both the service layer and the DB.
+
+```mermaid
+flowchart TD
+    A[POST /api/pickups] --> B{HasPendingPaymentForHousehold?}
+    B -- Yes --> C[409 Conflict<br/>BR-01 violation]
+    B -- No --> D{acquire pg_advisory_xact_lock<br/>household_id hash}
+    D --> E{re-check pending payment<br/>inside transaction}
+    E -- Yes --> F[rollback + 409]
+    E -- No --> G[INSERT waste_pickup<br/>with partial-UNIQUE guard]
+    G --> H[201 Created]
+```
+
+**Enforcement layers:**
+1. `service/pickup.go:Create` — `HasPendingPaymentForHousehold` query before the advisory lock.
+2. `pg_advisory_xact_lock` — serialises concurrent creates for the same household.
+3. Partial UNIQUE index `uq_pickups_pending_per_household` — DB-level safety net for any concurrent bypass.
+
+---
+
+### Complete Pickup — BR-05 Atomic Transaction
+
+Completing a pickup and creating its payment record happens inside a
+single database transaction. Either both succeed or neither does.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Service
+    participant R as Repository
+    participant DB as PostgreSQL
+
+    S->>DB: BEGIN tx
+    S->>R: UpdateStatus(tx, id, pending_payment=false)<br/>WHERE status='scheduled'
+    R->>DB: UPDATE waste_pickups SET status='completed'<br/>WHERE id=? AND status='scheduled'
+    DB-->>R: rows affected (1 = OK, 0 = conflict)
+    alt rows affected == 0
+        R-->>S: ErrConflict
+        S->>DB: ROLLBACK
+    else rows affected == 1
+        S->>R: CreateWithTx(tx, payment)
+        R->>DB: INSERT INTO payments<br/>(partial-UNIQUE index guard)
+        DB-->>R: payment row
+        R-->>S: payment
+        S->>DB: COMMIT
+        S-->>S: return completed pickup + new payment
+    end
+```
+
+**Code:** `internal/service/pickup.go:Complete` (lines 182–264).
+
+---
+
+### Payment Confirm — BR-06 Proof Upload Flow
+
+Confirming a payment requires a valid proof file. The handler enforces
+the MIME allowlist and magic-byte check before the service uploads to S3.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant H as Handler
+    participant S as Service
+    participant M as MinIO/S3
+    participant R as Repository
+    participant DB as PostgreSQL
+
+    C->>H: PUT /api/payments/:id/confirm<br/>multipart/form-data proof file
+    H->>H: check Content-Type in allowlist<br/>(image/jpeg, image/png, application/pdf)
+    H->>H: sniff magic bytes (FF D8 FF, 89 PNG, 25 50 44 46)
+    alt invalid MIME or magic bytes
+        H-->>C: 400 Bad Request
+    else valid
+        H->>S: Confirm(id, reader, size, contentType)
+        S->>M: PutObject(bucket, key, reader)
+        alt S3 upload fails
+            M-->>S: error
+            S-->>H: ErrValidation
+            H-->>C: 400
+        else S3 upload succeeds
+            M-->>S: object URL
+            S->>R: Confirm(id, proofURL, paidAt)
+            R->>DB: UPDATE payments SET status='paid'<br/>proof_file_url=? WHERE id=? AND status='pending'
+            alt DB update fails
+                DB-->>R: error
+                R-->>S: error
+                S->>M: DeleteObject (best-effort cleanup)
+                S-->>H: error
+                H-->>C: 500
+            else DB update succeeds
+                DB-->>R: paid payment row
+                R-->>S: payment
+                S-->>H: payment
+                H-->>C: 200 OK
+            end
+        end
+    end
+```
+
+**Code:** `internal/handler/payment.go:104-163` (MIME + magic-byte check),
+`internal/service/payment.go:Confirm` (S3 upload + DB update + cleanup).
+
+---
+
+### BR-04 Worker — Organic Auto-Cancel
+
+A background goroutine periodically cancels organic pickups that were
+never scheduled within the configured cutoff window.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant M as main.go
+    participant W as Worker goroutine
+    participant R as Repository
+    participant DB as PostgreSQL
+
+    M->>W: go worker.Run(ctx)
+    loop every WORKER_CANCEL_INTERVAL
+        W->>R: CancelExpiredOrganicPickups(ctx, cutoffTime)
+        R->>DB: UPDATE waste_pickups<br/>SET status='canceled'<br/>WHERE type='organic' AND status='pending'<br/>AND created_at < now() - cutoff
+        DB-->>R: rows affected
+        R-->>W: count canceled
+        W->>W: log count + emit metric
+    end
+    Note over M,W: SIGTERM received
+    M->>W: context.Cancel()
+    W->>W: ticker.Stop(), drain in-flight tick
+    W-->>M: goroutine exits
+    Note over M: wg.Wait() unblocks, graceful shutdown proceeds
+```
+
+**Code:** `internal/worker/organic_canceler.go`. Context cancellation is
+handled inside the `for range ticker.C` loop; in-flight DB queries carry
+the same context and return promptly when cancelled.
+
+---
+
+## Data model
+
+
+### Entity-Relationship Diagram
+
+Three core entities. Deleting a household cascades to all its pickups,
+which cascade to all their payments.
+
+```mermaid
+erDiagram
+    HOUSEHOLDS ||--o{ WASTE_PICKUPS : has
+    WASTE_PICKUPS ||--|| PAYMENTS : "settles via"
+
+    HOUSEHOLDS {
+        UUID        id          PK
+        TEXT        owner_name
+        TEXT        address
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    WASTE_PICKUPS {
+        UUID        id              PK
+        UUID        household_id    FK
+        ENUM        type            "organic|plastic|paper|electronic"
+        ENUM        status          "pending|scheduled|completed|canceled"
+        TIMESTAMPTZ pickup_date
+        BOOL        safety_check
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    PAYMENTS {
+        UUID        id              PK
+        UUID        waste_id        FK
+        UUID        household_id    FK
+        NUMERIC     amount
+        ENUM        status          "pending|paid|failed"
+        TEXT        proof_file_url
+        TIMESTAMPTZ payment_date
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+```
+
+**Domain structs:** `internal/domain/household.go`, `internal/domain/pickup.go`,
+`internal/domain/payment.go`. All UUID primary keys are generated by
+`uuid_generate_v4()` at the DB layer via `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`.
+
+---
+
+### Index Strategy
+
+Indexes serve two purposes: (1) fast lookups for the list + filter queries,
+and (2) data-integrity enforcement for business rules.
+
+```mermaid
+graph TD
+    subgraph households
+        H_PK["PRIMARY KEY (id)<br/>uuid_generate_v4()"]
+    end
+
+    subgraph waste_pickups
+        WP_PK["PRIMARY KEY (id)"]
+        WP_FK["FOREIGN KEY (household_id)<br/>ON DELETE CASCADE"]
+        WP_IDX1["INDEX (household_id)<br/>fast lookup for list-by-household"]
+        WP_IDX2["INDEX (status)<br/>fast filter for worker + list queries"]
+        WP_UNIQ["PARTIAL UNIQUE (household_id)<br/>WHERE status = 'pending'<br/>uq_pickups_pending_per_household<br/>BR-01 DB-level guard"]
+    end
+
+    subgraph payments
+        P_PK["PRIMARY KEY (id)"]
+        P_FK1["FOREIGN KEY (waste_id)<br/>ON DELETE CASCADE"]
+        P_FK2["FOREIGN KEY (household_id)<br/>ON DELETE CASCADE"]
+        P_IDX1["UNIQUE (waste_id)<br/>one payment per pickup"]
+        P_UNIQ["PARTIAL UNIQUE (household_id)<br/>WHERE status = 'pending'<br/>uq_payments_one_pending_per_household<br/>BR-01 + BR-05 DB-level guard"]
+        P_IDX2["INDEX (household_id, status)<br/>fast filter for list + report queries"]
+    end
+```
+
+#### Key design decisions
+
+- **Partial UNIQUE indexes on `status = 'pending'`** — both the pickups
+  and payments tables carry a partial unique constraint scoped to
+  `pending` rows. This means there can be at most one pending pickup per
+  household (BR-01) and at most one pending payment per household
+  (BR-05). Once a row transitions out of `pending` the constraint no
+  longer applies and new pending rows are allowed.
+- **`ON DELETE CASCADE`** — deleting a household removes all its pickups,
+  which removes all their payments in a single FK chain. No orphaned rows.
+- **UUID primary keys** — generated by the DB (`uuid_generate_v4()`),
+  never by the application layer. Prevents duplicate-key collisions even
+  under concurrent inserts.
+
+---
+
+### Migration History
+
+Numbered sequential migrations under `migrations/`. Each ships as a pair
+of `.up.sql` and `.down.sql` files.
+
+| # | File prefix | Purpose |
+|---|-------------|---------|
+| 1 | `000001_create_tables` | Baseline schema: households, waste_pickups, payments with all required columns |
+| 2 | `000002_add_indexes` | Lookup indexes on FK columns |
+| 3 | `000003_enum_changes` | Waste type enum refinements |
+| 4 | `000004_unique_pending_payment` | Partial UNIQUE `uq_payments_one_pending_per_household` — DB guard for BR-01 / BR-05 |
+| 5 | `000005_performance_indexes` | Composite indexes for list + filter query paths |
+
+Run with: `make migrate-up` or `migrate -path=migrations -database "$DATABASE_URL" up`.
+
+---
+
+## Decisions
+
+- **No ORM — raw SQL via `sqlx`**: Full control over queries and query plans. The small schema (3 entities, 5 migrations) doesn't need a query builder; the BR invariants are easier to audit in plain SQL.
+- **Sentinel errors for domain outcomes**: Five typed errors in `internal/domain/errors.go` (`ErrNotFound`, `ErrConflict`, `ErrBusinessRule`, `ErrValidation`, `ErrRateLimit`) let handlers map outcomes to HTTP status codes without leaking repository or SQL types into the wire contract.
+- **`shopspring/decimal` for monetary amounts**: Eliminates float rounding errors. Amounts stored as `NUMERIC(12,2)` in PostgreSQL and marshalled as quoted JSON strings (`"50000.00"`).
+- **Per-IP token bucket rate limiting**: `golang.org/x/time/rate` in a `sync.Map` keyed on `X-Real-IP`/`RemoteAddr`. Zero extra infrastructure; configurable via `RATE_LIMIT_RPS` and `RATE_LIMIT_BURST` env vars.
+- **Background worker with context cancellation**: `OrganicCanceler` ticks on a configurable interval. Shutdown sends a context cancel; the worker drains its current cycle and exits within `WorkerShutdownTimeout` so `SIGTERM` never leaves the process in a half-cancelled state.
+- **Business rules in the service layer**: Handlers parse and validate input only; repositories are pure data access. All BR-01..BR-06 invariants live in `internal/service/`, enforced by partial-UNIQUE index + pending-payment guard (BR-01), DB transaction atomicity with conditional-UPDATE status guards (BR-05), and MIME allowlist + magic-byte sniff (BR-06).
+- **OpenTelemetry for vendor-neutral distributed tracing**: OTLP export to Jaeger for local dev. Every layer creates named child spans (`service.pickup.Create`, `repository.household.FindByID`, etc.) with domain attributes. `trace_id` is injected into every slog line for log/trace correlation.
+- **Prometheus RED metrics with Grafana auto-provisioning**: 21 instruments covering HTTP, DB query duration, business events, worker cycles, and S3 upload latency. Datasources and three dashboards are version-controlled under `deployments/grafana/` and provisioned automatically on `docker compose up`.
