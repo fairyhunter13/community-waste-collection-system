@@ -41,22 +41,19 @@ func (r *householdRepo) Create(ctx context.Context, h *domain.Household) error {
 	observability.DbQueryDurationSeconds.WithLabelValues("households", "INSERT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("households", "INSERT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "householdRepo.Create", err)
 		return fmt.Errorf("create household: %w", domain.ErrInternalFailure)
 	}
 	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		if err := rows.StructScan(h); err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			observability.SpanFail(span, err)
 			return fmt.Errorf("scan household: %w", domain.ErrInternalFailure)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		return fmt.Errorf("rows err: %w", domain.ErrInternalFailure)
 	}
 	span.SetAttributes(attribute.String("household.id", h.ID.String()))
@@ -84,8 +81,7 @@ func (r *householdRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Hou
 	}
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "householdRepo.FindByID", err)
 		return nil, fmt.Errorf("find household: %w", domain.ErrInternalFailure)
 	}
@@ -115,8 +111,7 @@ func (r *householdRepo) List(ctx context.Context, page, perPage int) ([]*domain.
 	var total int
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM households`).Scan(&total); err != nil {
 		observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "householdRepo.List.count", err)
 		return nil, 0, fmt.Errorf("count households: %w", domain.ErrInternalFailure)
 	}
@@ -130,8 +125,7 @@ func (r *householdRepo) List(ctx context.Context, page, perPage int) ([]*domain.
 	observability.DbQueryDurationSeconds.WithLabelValues("households", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("households", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "householdRepo.List", err)
 		return nil, 0, fmt.Errorf("list households: %w", domain.ErrInternalFailure)
 	}
@@ -156,15 +150,13 @@ func (r *householdRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	observability.DbQueryDurationSeconds.WithLabelValues("households", "DELETE").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("households", "DELETE").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "householdRepo.Delete", err)
 		return fmt.Errorf("delete household: %w", domain.ErrInternalFailure)
 	}
 	n, err := result.RowsAffected()
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		return fmt.Errorf("rows affected: %w", domain.ErrInternalFailure)
 	}
 	if n == 0 {

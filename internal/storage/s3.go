@@ -15,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 
 	"github.com/fairyhunter13/community-waste-collection-system/internal/config"
 	"github.com/fairyhunter13/community-waste-collection-system/internal/domain"
@@ -77,8 +76,7 @@ func (c *S3Client) EnsureBucket(ctx context.Context) error {
 	}
 	_, err = c.client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(c.bucket)})
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.FromContext(ctx).ErrorContext(ctx, "ensure S3 bucket failed",
 			slog.String("op", "S3.EnsureBucket"),
 			slog.String("bucket", c.bucket),
@@ -111,8 +109,7 @@ func (c *S3Client) Upload(ctx context.Context, key string, r io.Reader, size int
 	observability.S3UploadDurationSeconds.Observe(time.Since(start).Seconds())
 
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.S3ErrorsTotal.Inc()
 		observability.FromContext(ctx).ErrorContext(ctx, "S3 upload failed",
 			slog.String("op", "S3.Upload"),
@@ -141,8 +138,7 @@ func (c *S3Client) Delete(ctx context.Context, key string) error {
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.FromContext(ctx).WarnContext(ctx, "S3 delete failed",
 			slog.String("op", "S3.Delete"),
 			slog.String("key", key),

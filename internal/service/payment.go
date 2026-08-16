@@ -44,8 +44,7 @@ func (s *paymentService) Create(ctx context.Context, req domain.CreatePaymentReq
 	// Guard: the pickup must belong to the same household as the payment request.
 	pickup, err := s.pickupRepo.FindByID(ctx, req.WasteID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		return nil, err
 	}
 	if pickup.HouseholdID != req.HouseholdID {
@@ -68,8 +67,7 @@ func (s *paymentService) Create(ctx context.Context, req domain.CreatePaymentReq
 		Status:      domain.PaymentStatusPending,
 	}
 	if err := s.repo.Create(ctx, payment); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "create failed", slog.Any("err", err))
 		return nil, err
 	}
@@ -96,8 +94,7 @@ func (s *paymentService) List(ctx context.Context, filter domain.PaymentFilter) 
 
 	payments, total, err := s.repo.List(ctx, filter)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.FromContext(ctx).ErrorContext(ctx, "list payments failed",
 			slog.String("op", "PaymentService.List"),
 			slog.Any("err", err),
@@ -132,8 +129,7 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 
 	payment, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "find payment failed", slog.String("payment_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
@@ -159,8 +155,7 @@ func (s *paymentService) Confirm(ctx context.Context, id uuid.UUID, file io.Read
 
 	paidAt := time.Now().UTC()
 	if err := s.repo.Confirm(ctx, id, proofURL, paidAt); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "confirm failed", slog.String("payment_id", id.String()), slog.Any("err", err))
 		// Best-effort cleanup: remove the orphaned S3 object so storage does not leak.
 		if delErr := s.storage.Delete(ctx, key); delErr != nil {

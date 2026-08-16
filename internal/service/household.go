@@ -35,8 +35,7 @@ func (s *householdService) Create(ctx context.Context, req domain.CreateHousehol
 		Address:   req.Address,
 	}
 	if err := s.repo.Create(ctx, h); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "create failed", slog.Any("err", err))
 		return nil, err
 	}
@@ -53,8 +52,7 @@ func (s *householdService) GetByID(ctx context.Context, id uuid.UUID) (*domain.H
 
 	h, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.FromContext(ctx).ErrorContext(ctx, "get household failed",
 			slog.String("op", "HouseholdService.GetByID"),
 			slog.String("household_id", id.String()),
@@ -73,8 +71,7 @@ func (s *householdService) List(ctx context.Context, page, perPage int) ([]*doma
 
 	households, total, err := s.repo.List(ctx, page, perPage)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.FromContext(ctx).ErrorContext(ctx, "list households failed",
 			slog.String("op", "HouseholdService.List"),
 			slog.Any("err", err),
@@ -95,8 +92,7 @@ func (s *householdService) Delete(ctx context.Context, id uuid.UUID) error {
 	log.DebugContext(ctx, "begin", slog.String("household_id", id.String()))
 
 	if err := s.repo.Delete(ctx, id); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "delete failed", slog.String("household_id", id.String()), slog.Any("err", err))
 		return fmt.Errorf("delete household: %w", err)
 	}

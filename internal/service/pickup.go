@@ -47,8 +47,7 @@ func (s *pickupService) Create(ctx context.Context, req domain.CreatePickupReque
 
 	hasPending, err := s.pickupRepo.HasPendingPaymentForHousehold(ctx, req.HouseholdID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "check pending payment failed", slog.Any("err", err))
 		return nil, err
 	}
@@ -69,8 +68,7 @@ func (s *pickupService) Create(ctx context.Context, req domain.CreatePickupReque
 		SafetyCheck: req.SafetyCheck,
 	}
 	if err := s.pickupRepo.Create(ctx, pickup); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "create failed", slog.Any("err", err))
 		return nil, err
 	}
@@ -97,8 +95,7 @@ func (s *pickupService) List(ctx context.Context, filter domain.PickupFilter) ([
 
 	pickups, total, err := s.pickupRepo.List(ctx, filter)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.FromContext(ctx).ErrorContext(ctx, "list pickups failed",
 			slog.String("op", "PickupService.List"),
 			slog.Any("err", err),
@@ -121,8 +118,7 @@ func (s *pickupService) Schedule(ctx context.Context, id uuid.UUID, req domain.S
 
 	pickup, err := s.pickupRepo.FindByID(ctx, id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "find pickup failed", slog.String("pickup_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
@@ -159,8 +155,7 @@ func (s *pickupService) Schedule(ctx context.Context, id uuid.UUID, req domain.S
 	}
 
 	if err := s.pickupRepo.Schedule(ctx, id, req.PickupDate); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "schedule failed", slog.String("pickup_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
@@ -190,8 +185,7 @@ func (s *pickupService) Complete(ctx context.Context, id uuid.UUID) (*domain.Was
 
 	pickup, err := s.pickupRepo.FindByID(ctx, id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "find pickup failed", slog.String("pickup_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
@@ -229,14 +223,12 @@ func (s *pickupService) Complete(ctx context.Context, id uuid.UUID) (*domain.Was
 	}()
 
 	if err = s.pickupRepo.UpdateStatus(ctx, id, domain.PickupStatusCompleted, tx); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "update status failed", slog.String("pickup_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
 	if err = s.paymentRepo.CreateWithTx(ctx, tx, payment); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "create payment failed", slog.String("pickup_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
@@ -275,16 +267,14 @@ func (s *pickupService) Cancel(ctx context.Context, id uuid.UUID) (*domain.Waste
 
 	ok, err := s.pickupRepo.CancelIfCancellable(ctx, id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "cancel check failed", slog.String("pickup_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}
 	if !ok {
 		pickup, err := s.pickupRepo.FindByID(ctx, id)
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			observability.SpanFail(span, err)
 			log.ErrorContext(ctx, "find pickup failed", slog.String("pickup_id", id.String()), slog.Any("err", err))
 			return nil, err
 		}
@@ -306,8 +296,7 @@ func (s *pickupService) Cancel(ctx context.Context, id uuid.UUID) (*domain.Waste
 
 	pickup, err := s.pickupRepo.FindByID(ctx, id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "find pickup after cancel failed", slog.String("pickup_id", id.String()), slog.Any("err", err))
 		return nil, err
 	}

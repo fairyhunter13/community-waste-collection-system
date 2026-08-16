@@ -61,22 +61,19 @@ func (r *paymentRepo) Create(ctx context.Context, p *domain.Payment) error {
 	observability.DbQueryDurationSeconds.WithLabelValues("payments", "INSERT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "INSERT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "paymentRepo.Create", err)
 		return mapPaymentCreateErr(err)
 	}
 	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		if err := rows.StructScan(p); err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			observability.SpanFail(span, err)
 			return fmt.Errorf("scan payment: %w", domain.ErrInternalFailure)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		return fmt.Errorf("rows err: %w", domain.ErrInternalFailure)
 	}
 	span.SetAttributes(attribute.String("payment.id", p.ID.String()))
@@ -101,22 +98,19 @@ func (r *paymentRepo) CreateWithTx(ctx context.Context, tx *sqlx.Tx, p *domain.P
 	observability.DbQueryDurationSeconds.WithLabelValues("payments", "INSERT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "INSERT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "paymentRepo.CreateWithTx", err)
 		return mapPaymentCreateErr(err)
 	}
 	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		if err := rows.StructScan(p); err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			observability.SpanFail(span, err)
 			return fmt.Errorf("scan payment (tx): %w", domain.ErrInternalFailure)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		return fmt.Errorf("rows err: %w", domain.ErrInternalFailure)
 	}
 	span.SetAttributes(attribute.String("payment.id", p.ID.String()))
@@ -144,8 +138,7 @@ func (r *paymentRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Payme
 	}
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "paymentRepo.FindByID", err)
 		return nil, fmt.Errorf("find payment: %w", domain.ErrInternalFailure)
 	}
@@ -206,8 +199,7 @@ func (r *paymentRepo) List(ctx context.Context, filter domain.PaymentFilter) ([]
 	var total int
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "paymentRepo.List.count", err)
 		return nil, 0, fmt.Errorf("count payments: %w", domain.ErrInternalFailure)
 	}
@@ -225,8 +217,7 @@ func (r *paymentRepo) List(ctx context.Context, filter domain.PaymentFilter) ([]
 	observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "paymentRepo.List", err)
 		return nil, 0, fmt.Errorf("list payments: %w", domain.ErrInternalFailure)
 	}
@@ -255,8 +246,7 @@ func (r *paymentRepo) Confirm(ctx context.Context, id uuid.UUID, proofURL string
 	observability.DbQueryDurationSeconds.WithLabelValues("payments", "UPDATE").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "UPDATE").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "paymentRepo.Confirm", err)
 		return fmt.Errorf("confirm payment: %w", domain.ErrInternalFailure)
 	}
@@ -295,8 +285,7 @@ func (r *paymentRepo) WasteSummary(ctx context.Context) ([]domain.WasteTypeSumma
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "paymentRepo.WasteSummary", err)
 		return nil, fmt.Errorf("waste summary: %w", domain.ErrInternalFailure)
 	}
@@ -349,8 +338,7 @@ func (r *paymentRepo) PaymentSummary(ctx context.Context) (*domain.PaymentSummar
 	observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "paymentRepo.PaymentSummary", err)
 		return nil, fmt.Errorf("payment summary: %w", domain.ErrInternalFailure)
 	}
@@ -447,8 +435,7 @@ func (r *paymentRepo) HouseholdHistory(ctx context.Context, householdID uuid.UUI
 	})
 
 	if err := g.Wait(); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		return nil, err
 	}
 	if notFound {

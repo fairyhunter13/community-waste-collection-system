@@ -52,22 +52,19 @@ func (r *pickupRepo) Create(ctx context.Context, p *domain.WastePickup) error {
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "INSERT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "INSERT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.Create", err)
 		return mapPickupCreateErr(err)
 	}
 	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		if err := rows.StructScan(p); err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			observability.SpanFail(span, err)
 			return fmt.Errorf("scan pickup: %w", domain.ErrInternalFailure)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		return fmt.Errorf("rows err: %w", domain.ErrInternalFailure)
 	}
 	span.SetAttributes(attribute.String("pickup.id", p.ID.String()))
@@ -95,8 +92,7 @@ func (r *pickupRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.WasteP
 	}
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.FindByID", err)
 		return nil, fmt.Errorf("find pickup: %w", domain.ErrInternalFailure)
 	}
@@ -147,8 +143,7 @@ func (r *pickupRepo) List(ctx context.Context, filter domain.PickupFilter) ([]*d
 	var total int
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.List.count", err)
 		return nil, 0, fmt.Errorf("count pickups: %w", domain.ErrInternalFailure)
 	}
@@ -166,8 +161,7 @@ func (r *pickupRepo) List(ctx context.Context, filter domain.PickupFilter) ([]*d
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.List", err)
 		return nil, 0, fmt.Errorf("list pickups: %w", domain.ErrInternalFailure)
 	}
@@ -217,8 +211,7 @@ func (r *pickupRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status doma
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "UPDATE").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "UPDATE").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.UpdateStatus", err)
 		return fmt.Errorf("update pickup status: %w", domain.ErrInternalFailure)
 	}
@@ -254,8 +247,7 @@ func (r *pickupRepo) Schedule(ctx context.Context, id uuid.UUID, date time.Time)
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "UPDATE").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "UPDATE").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.Schedule", err)
 		return fmt.Errorf("schedule pickup: %w", domain.ErrInternalFailure)
 	}
@@ -289,8 +281,7 @@ func (r *pickupRepo) FindExpiredOrganic(ctx context.Context, before time.Time) (
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.FindExpiredOrganic", err)
 		return nil, fmt.Errorf("find expired organic: %w", domain.ErrInternalFailure)
 	}
@@ -331,8 +322,7 @@ func (r *pickupRepo) BulkCancel(ctx context.Context, ids []uuid.UUID) error {
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "UPDATE").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "UPDATE").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.BulkCancel", err)
 		return fmt.Errorf("bulk cancel pickups: %w", domain.ErrInternalFailure)
 	}
@@ -358,8 +348,7 @@ func (r *pickupRepo) CancelIfCancellable(ctx context.Context, id uuid.UUID) (boo
 	observability.DbQueryDurationSeconds.WithLabelValues("waste_pickups", "UPDATE").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("waste_pickups", "UPDATE").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.CancelIfCancellable", err)
 		return false, fmt.Errorf("cancel pickup: %w", domain.ErrInternalFailure)
 	}
@@ -388,8 +377,7 @@ func (r *pickupRepo) HasPendingPaymentForHousehold(ctx context.Context, househol
 	observability.DbQueryDurationSeconds.WithLabelValues("payments", "SELECT").Observe(time.Since(start).Seconds())
 	if err != nil {
 		observability.DbErrorsTotal.WithLabelValues("payments", "SELECT").Inc()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		logDBErr(ctx, "pickupRepo.HasPendingPaymentForHousehold", err)
 		return false, fmt.Errorf("check pending payment: %w", domain.ErrInternalFailure)
 	}
