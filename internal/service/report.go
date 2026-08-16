@@ -27,8 +27,7 @@ func (s *reportService) WasteSummary(ctx context.Context) ([]domain.WasteTypeSum
 
 	result, err := s.paymentRepo.WasteSummary(ctx)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.FromContext(ctx).ErrorContext(ctx, "waste summary failed",
 			slog.String("op", "ReportService.WasteSummary"),
 			slog.Any("err", err),
@@ -46,8 +45,7 @@ func (s *reportService) PaymentSummary(ctx context.Context) (*domain.PaymentSumm
 
 	result, err := s.paymentRepo.PaymentSummary(ctx)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		observability.FromContext(ctx).ErrorContext(ctx, "payment summary failed",
 			slog.String("op", "ReportService.PaymentSummary"),
 			slog.Any("err", err),
@@ -69,8 +67,7 @@ func (s *reportService) HouseholdHistory(ctx context.Context, id uuid.UUID) (*do
 
 	result, err := s.paymentRepo.HouseholdHistory(ctx, id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		observability.SpanFail(span, err)
 		log.ErrorContext(ctx, "household history failed",
 			slog.String("household_id", id.String()),
 			slog.Any("err", err),
