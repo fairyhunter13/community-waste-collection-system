@@ -16,14 +16,14 @@ Built with Go 1.26, Echo v4, PostgreSQL 17, MinIO, and Docker Compose.
 - **15 product REST endpoints** across households, pickups, payments, and reports plus 3 operational endpoints (`/health`, `/readyz`, `/metrics`)
 - **6 business rules** enforced in the service layer:
   - BR-01 — A household with any pending payment cannot create a new pickup
-  - BR-02 — Only pending pickups can be scheduled; only scheduled can be completed or cancelled
+  - BR-02 — Only pending pickups can be scheduled. Only scheduled can be completed or canceled
   - BR-03 — Electronic waste pickup requires a `safety_check: true` flag
   - BR-04 — Organic pickups with no scheduled date for 3 days are auto-cancelled by a background worker
   - BR-05 — Completing a pickup atomically auto-generates a payment record at the confirmed amount
   - BR-06 — Payment confirmation requires a multipart proof-of-payment file upload
-- **Per-IP rate limiting** on pickup creation (5 req/s, burst 10) via token bucket
+- **Per-IP rate limiting** on pickup creation (5 req/s, burst 10) through token bucket
 - **Full-stack observability**: structured JSON logs (slog), distributed tracing (OTel → Jaeger), 21 Prometheus instruments, 3 auto-provisioned Grafana dashboards
-- **Unit test coverage ≥80%** enforced in CI; integration tests use real PostgreSQL via testcontainers
+- **Unit test coverage ≥80%** enforced in CI. Integration tests use real PostgreSQL through testcontainers
 - **OpenAPI 3.0 spec** documented in `api/openapi.yaml`
 
 ---
@@ -322,13 +322,13 @@ make bench
 
 ---
 
-## Known Limitations
+## Known Limits
 
-- **DB and MinIO credentials default to development values.** Override `DATABASE_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` via environment variables or a secrets manager before deploying to production.
+- **DB and MinIO credentials default to development values.** Override `DATABASE_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` through environment variables or a secrets manager before deploying to production.
 - **Jaeger uses in-memory trace storage in docker-compose.** Spans are lost on container restart — intentional for local development. Use a persistent backend (e.g. Elasticsearch) in production.
 - **`DELETE /api/households` performs a hard cascade delete.** The household and all linked pickups/payments are permanently removed. Audit trail preservation is out of scope for v1.
-- **`WORKER_CANCEL_INTERVAL` adds up to one tick of drift to the 3-day organic-cancellation cutoff.** At the default 1-hour interval the worst case is ~73 hours. Reduce `WORKER_CANCEL_INTERVAL` for tighter SLAs.
-- **pprof debug server binds to `127.0.0.1` only.** Not reachable from outside the container; no host port is mapped.
+- **`WORKER_CANCEL_INTERVAL` adds up to one tick of drift to the 3-day organic-cancellation cutoff.** At the default 1-hour interval the worst case is ~73 hours. Decrease `WORKER_CANCEL_INTERVAL` for tighter SLAs.
+- **pprof debug server binds to `127.0.0.1` only.** Not reachable from outside the container. No host port is mapped.
 
 ---
 
