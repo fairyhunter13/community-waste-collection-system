@@ -9,7 +9,7 @@ LDFLAGS    := -w -s
 .DEFAULT_GOAL := help
 
 .PHONY: help all run build clean \
-        lint fmt vet mocks \
+        lint lint-knowledge lint-knowledge-strict fmt vet mocks \
         test test-unit test-integration test-e2e bench perf coverage \
         load load-average \
         dashboards-lint dashboards-int dashboards-e2e dashboards-playwright \
@@ -46,6 +46,18 @@ clean:
 lint:
 	golangci-lint run ./...
 
+## lint-knowledge: conformance-check the OKF bundle (installs the pinned checker if absent)
+lint-knowledge:
+	@command -v okfrules >/dev/null 2>&1 || \
+	    go install github.com/fairyhunter13/okf/cmd/okfrules@v0.6.0
+	okfrules check knowledge
+
+## lint-knowledge-strict: the -Werror form; advisory while the bundle is still growing
+lint-knowledge-strict:
+	@command -v okfrules >/dev/null 2>&1 || \
+	    go install github.com/fairyhunter13/okf/cmd/okfrules@v0.6.0
+	okfrules check -Werror knowledge
+
 ## fmt: run goimports
 fmt:
 	goimports -w -local $(MODULE) .
@@ -54,8 +66,8 @@ fmt:
 vet:
 	go vet ./...
 
-## test: alias for test-unit
-test: test-unit
+## test: bundle conformance plus test-unit
+test: lint-knowledge test-unit
 
 ## test-unit: race-enabled unit tests with coverage profile
 test-unit:

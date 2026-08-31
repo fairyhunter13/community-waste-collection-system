@@ -37,3 +37,6 @@ REQUIREMENTS_RAW.md
 
 # Node tooling (collection verifiers)
 node_modules/
+
+# OKF bundle view, generated on demand by `okf viz`
+knowledge/viz.html
