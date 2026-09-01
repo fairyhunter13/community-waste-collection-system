@@ -5,6 +5,10 @@ title: community-waste-collection-system knowledge history
 
 # Bundle history
 
+## 2026-09-01
+
+- **Update**: the checker pin moves to okf `v0.6.1`. No rule changed tier and none changed behaviour: the tag exists because `@v0.6.0` installs a `README.md` denying its own `knowledge/` and a decision record contradicting the `rules/rules.go` it names as its `resource` — the two files a consumer reads to learn what the checker does. The gate's verdict on this bundle is unchanged.
+
 ## 2026-08-31
 
 - **Migration**: the session memory store for this repo was folded in and deleted. Three concepts survived: [A missing foreign key answers 400 on create and 404 on a path id](decisions/a-missing-foreign-key-is-400-not-404.md), [The coverage gate reads the unit profile alone](constraints/coverage-profiles-cannot-be-concatenated.md), and [An E2E test that sends a burst needs its own client IP](constraints/an-e2e-burst-test-needs-its-own-client-ip.md).

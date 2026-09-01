@@ -49,13 +49,13 @@ lint:
 ## lint-knowledge: conformance-check the OKF bundle (installs the pinned checker if absent)
 lint-knowledge:
 	@command -v okfrules >/dev/null 2>&1 || \
-	    go install github.com/fairyhunter13/okf/cmd/okfrules@v0.6.0
+	    go install github.com/fairyhunter13/okf/cmd/okfrules@v0.6.1
 	okfrules check knowledge
 
 ## lint-knowledge-strict: the -Werror form; advisory while the bundle is still growing
 lint-knowledge-strict:
 	@command -v okfrules >/dev/null 2>&1 || \
-	    go install github.com/fairyhunter13/okf/cmd/okfrules@v0.6.0
+	    go install github.com/fairyhunter13/okf/cmd/okfrules@v0.6.1
 	okfrules check -Werror knowledge
 
 ## fmt: run goimports
